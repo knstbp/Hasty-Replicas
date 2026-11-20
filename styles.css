@@ -721,7 +721,7 @@ button, input {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 190px;
+  max-width: 260px;
 }
 
 .hud-subtitle {
@@ -730,7 +730,7 @@ button, input {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 190px;
+  max-width: 260px;
 }
 
 .timer-box {

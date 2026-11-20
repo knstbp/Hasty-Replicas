@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="名畫急就章 · Hasty Replicas — 精選 30 幅歐美古典至印象派人物名畫與梵谷代表作，16 色幾何切面向量插畫，限時 3 分鐘極速臨摹挑戰！" />
+  <meta name="theme-color" content="#1F1A17" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="名畫急就章 · Hasty Replicas" />
+  <meta property="og:description" content="沒有復原鍵、沒有油漆桶。精選 30 幅歐美古典至印象派人物名畫與梵谷代表作，16 色幾何切面向量插畫，限時 3 分鐘極速臨摹！" />
+  <meta property="og:image" content="https://knstbp.github.io/Hasty-Replicas/assets/icon-512.png" />
+  <meta property="og:url" content="https://knstbp.github.io/Hasty-Replicas/" />
+  <meta name="twitter:card" content="summary" />
+  <title>名畫急就章 · Hasty Replicas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="assets/app.ico" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <!-- ==================== GALLERY / HOME SCREEN ==================== -->
+    <section id="screen-gallery" class="screen active" aria-label="名畫畫廊">
+      <header class="gallery-header">
+        <div class="brand-block">
+          <div class="brand-badge">ATELIER DE RÉPLIQUE RAPIDE</div>
+          <h1 class="brand-title">名畫急就章 <span class="brand-sub">Hasty Replicas</span></h1>
+          <p class="brand-desc">
+            沒有復原鍵、沒有油漆桶。精選 30 幅歐美古典至印象派人物名畫與梵谷代表作，保留原畫比例不裁切並轉化為 16 色幾何切面向量插畫，限時 3 分鐘極速臨摹！
+          </p>
+        </div>
+
+        <div class="header-controls">
+          <div class="fixed-mode-badge" aria-label="遊戲規則">
+            <span>⏱ 限時 3 分鐘</span>
+            <span class="dot-sep">·</span>
+            <span>🎨 16 色平塗</span>
+          </div>
+
+          <div class="header-actions">
+            <button id="btn-open-records" class="btn btn-secondary">
+              <span class="btn-icon">🏆</span>
+              <span>分數紀錄</span>
+              <span id="records-count-badge" class="count-badge">0</span>
+            </button>
+            <button id="btn-toggle-sound-home" class="btn btn-icon-only" title="切換音效" aria-label="切換音效">
+              🔊
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="stats-ribbon" id="gallery-stats-ribbon">
+        <div class="stat-chip">
+          <span class="stat-label">已挑戰名畫</span>
+          <strong class="stat-value" id="stat-masterpieces">0 / 30</strong>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-label">平均最佳完成度</span>
+          <strong class="stat-value" id="stat-avg-best">0.0%</strong>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-label">總臨摹次數</span>
+          <strong class="stat-value" id="stat-total-plays">0</strong>
+        </div>
+        <button id="btn-random-painting" class="btn btn-primary btn-random">
+          🎲 隨機抽一幅名畫
+        </button>
+      </div>
+
+      <div class="gallery-toolbar">
+        <div class="category-tabs" id="category-tabs" role="tablist" aria-label="名畫分類">
+          <button class="cat-tab active" data-cat="all">全部 <span class="cat-count" id="cat-count-all">30</span></button>
+          <button class="cat-tab" data-cat="renaissance">文藝復興</button>
+          <button class="cat-tab" data-cat="baroque">巴洛克與洛可可</button>
+          <button class="cat-tab" data-cat="romanticism">新古典、浪漫與寫實</button>
+          <button class="cat-tab" data-cat="impressionism">印象派與梵谷</button>
+          <button class="cat-tab" data-cat="unplayed">未挑戰</button>
+        </div>
+
+        <div class="gallery-search-wrap">
+          <input type="search" id="gallery-search" class="gallery-search-input" placeholder="搜尋畫作或畫家（如：梵谷、星夜、莫內）..." aria-label="搜尋名畫" />
+        </div>
+      </div>
+
+      <main class="gallery-grid" id="gallery-grid" aria-label="名畫列表">
+        <!-- Dynamically populated by js/game.js -->
+      </main>
+
+      <footer class="gallery-footer">
+        <span>💡 小提示：每個像素權重相同——先用大筆刷快速鋪滿背景與大色塊，再修細節最容易拿高分！</span>
+      </footer>
+    </section>
+
+    <!-- ==================== PLAY / STUDIO SCREEN ==================== -->
+    <section id="screen-play" class="screen" aria-label="臨摹畫室">
+      <!-- Top HUD -->
+      <header class="play-hud">
+        <div class="hud-left">
+          <button id="btn-back-gallery" class="btn btn-ghost btn-sm" title="返回畫廊">
+            ← 畫廊
+          </button>
+          <div class="hud-title-wrap">
+            <div class="hud-title-row">
+              <h2 id="play-painting-title" class="hud-title">星夜</h2>
+              <span id="play-color-badge" class="diff-badge diff-medium">16 色</span>
+            </div>
+            <span id="play-painting-artist" class="hud-subtitle">文森·梵谷</span>
+          </div>
+        </div>
+
+        <div class="hud-center">
+          <div class="timer-box" id="timer-box">
+            <span class="timer-icon">⏱</span>
+            <span id="timer-display" class="timer-value">03:00</span>
+          </div>
+
+          <div class="accuracy-box" title="即時像素吻合度">
+            <div class="accuracy-header">
+              <span class="accuracy-label">完成度</span>
+              <span id="live-accuracy-value" class="accuracy-value">0.0%</span>
+              <span id="live-rank-badge" class="rank-pill rank-F">F</span>
+            </div>
+            <div class="accuracy-bar-track">
+              <div id="live-accuracy-fill" class="accuracy-bar-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-right">
+          <button id="btn-grid-toggle" class="btn btn-ghost btn-sm" title="切換九宮格輔助線 (G)">
+            ⊞ <span class="hide-mobile">格線</span>
+          </button>
+          <button id="btn-peek" class="btn btn-accent-outline btn-sm" title="透視疊加原畫 2.5 秒 (Space)">
+            👁 <span class="hide-mobile">透視</span> <span id="peek-count" class="mini-badge">3</span>
+          </button>
+          <button id="btn-toggle-sound-play" class="btn btn-icon-only btn-sm" title="切換音效">
+            🔊
+          </button>
+          <button id="btn-submit-early" class="btn btn-primary btn-sm">
+            交畫 ✓
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Studio Workspace -->
+      <main class="studio-workspace" id="studio-workspace">
+        <!-- Reference Panel -->
+        <div class="canvas-panel reference-panel" id="reference-panel">
+          <div class="panel-label-bar">
+            <span class="panel-tag">原畫參考 <small class="no-undo-hint">（💧 點擊畫面可吸取顏色）</small></span>
+            <div class="panel-label-actions">
+              <button id="btn-view-original" class="btn-tiny btn-view-orig" title="查看博物館高清原圖">
+                🖼 查看原畫
+              </button>
+              <button id="btn-toggle-ref-size" class="btn-tiny show-mobile-only" title="縮放參考圖">
+                展開 / 縮小
+              </button>
+            </div>
+          </div>
+          <div class="easel-frame reference-frame" id="reference-frame" title="點擊原畫任意位置吸取該處顏色">
+            <canvas id="ref-canvas" width="480" height="360"></canvas>
+            <div class="grid-overlay" id="ref-grid-overlay"></div>
+            <div id="eyedrop-pip" class="eyedrop-pip" aria-hidden="true"></div>
+          </div>
+          <aside class="ref-plaque" id="ref-plaque" aria-label="名畫簡介">
+            <div class="ref-plaque-head">
+              <strong id="ref-plaque-title" class="ref-plaque-title">星夜</strong>
+              <span id="ref-plaque-meta" class="ref-plaque-meta">文森·梵谷 · 1889</span>
+            </div>
+            <p id="ref-plaque-desc" class="ref-plaque-desc"></p>
+          </aside>
+        </div>
+
+        <!-- Player Canvas Panel -->
+        <div class="canvas-panel player-panel">
+          <div class="panel-label-bar">
+            <span class="panel-tag player-tag">你的畫布 <small class="no-undo-hint">（無復原鍵 · 直接覆蓋重畫）</small></span>
+            <span id="stroke-delta" class="stroke-delta" aria-live="polite"></span>
+          </div>
+          <div class="easel-frame player-frame" id="player-frame">
+            <canvas id="draw-canvas" width="480" height="360"></canvas>
+            <canvas id="peek-canvas" width="480" height="360" class="peek-overlay"></canvas>
+            <div class="grid-overlay" id="draw-grid-overlay"></div>
+            <div id="brush-cursor" class="brush-cursor"></div>
+
+            <!-- Ready Overlay before first stroke or countdown -->
+            <div id="ready-overlay" class="ready-overlay">
+              <div class="ready-card">
+                <div class="ready-eyebrow">準備臨摹</div>
+                <h3 id="ready-title">星夜</h3>
+                <p id="ready-meta">文森·梵谷 · 16 色向量插畫 · 限時 3 分鐘</p>
+                <div class="ready-rules">
+                  <span>🚫 無復原鍵</span>
+                  <span>🚫 無油漆桶</span>
+                  <span>💧 點擊原畫吸色</span>
+                  <span>👁 3 次透視機會</span>
+                </div>
+                <button id="btn-start-round" class="btn btn-primary btn-lg">
+                  拿起畫筆開始！
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Bottom Tool Dock -->
+      <footer class="tool-dock" aria-label="調色盤與筆刷工具">
+        <div class="dock-section palette-section">
+          <span class="dock-label hide-mobile" id="dock-palette-label">調色盤 <small>(1-0)</small></span>
+          <div id="palette-container" class="palette-swatches">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <div class="dock-divider"></div>
+
+        <div class="dock-section brush-section">
+          <span class="dock-label hide-mobile">筆刷大小 <small>(Q/W/E/R)</small></span>
+          <div id="brush-sizes" class="brush-size-group">
+            <button class="brush-btn" data-size="8" title="極細筆刷 (Q)">
+              <span class="brush-dot" style="width: 7px; height: 7px;"></span>
+              <span class="brush-label">細</span>
+            </button>
+            <button class="brush-btn" data-size="18" title="小筆刷 (W)">
+              <span class="brush-dot" style="width: 12px; height: 12px;"></span>
+              <span class="brush-label">小</span>
+            </button>
+            <button class="brush-btn active" data-size="36" title="中筆刷 (E)">
+              <span class="brush-dot" style="width: 18px; height: 18px;"></span>
+              <span class="brush-label">中</span>
+            </button>
+            <button class="brush-btn" data-size="68" title="大筆刷 (R)">
+              <span class="brush-dot" style="width: 24px; height: 24px;"></span>
+              <span class="brush-label">大</span>
+            </button>
+          </div>
+        </div>
+      </footer>
+    </section>
+
+    <!-- ==================== RESULT / COMPARISON SCREEN ==================== -->
+    <section id="screen-result" class="screen" aria-label="完成度對比與評分">
+      <div class="result-container">
+        <header class="result-header">
+          <div class="result-title-group">
+            <span class="result-eyebrow">畫作鑑定報告</span>
+            <h2 id="result-painting-title">星夜</h2>
+            <p id="result-critic-quote" class="critic-quote">「令人驚嘆的筆觸，拍賣行差點信以為真！」</p>
+          </div>
+
+          <div class="result-score-card">
+            <div id="result-rank-stamp" class="rank-stamp rank-S">S</div>
+            <div class="result-score-numbers">
+              <div class="score-main">
+                <span id="result-accuracy">86.4</span><span class="score-percent">%</span>
+              </div>
+              <div class="score-meta">
+                <span id="result-new-best" class="new-best-tag hidden">★ 新紀錄！</span>
+                <span id="result-time-used">用時 01:12 / 01:30</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Comparison Mode Tabs -->
+        <div class="compare-toolbar">
+          <div class="pill-group" id="compare-mode-group">
+            <button class="pill-btn active" data-mode="side">並列對比</button>
+            <button class="pill-btn" data-mode="slider">拉桿對比</button>
+            <button class="pill-btn" data-mode="diff">誤差熱圖</button>
+            <button class="pill-btn" data-mode="overlay">原畫疊加</button>
+          </div>
+
+          <div id="diff-options" class="diff-options hidden">
+            <label class="checkbox-pill">
+              <input type="checkbox" id="chk-hide-missed" />
+              <span>隱藏失誤像素</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Comparison Stage -->
+        <div class="compare-stage" id="compare-stage">
+          <!-- Mode 1: Side by Side -->
+          <div class="compare-view active" id="view-side">
+            <div class="compare-card">
+              <div class="compare-card-label">原作真跡</div>
+              <div class="easel-frame">
+                <canvas id="res-orig-canvas" width="480" height="360"></canvas>
+              </div>
+            </div>
+            <div class="compare-card">
+              <div class="compare-card-label">你的臨摹作品</div>
+              <div class="easel-frame">
+                <canvas id="res-user-canvas" width="480" height="360"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode 2: Interactive Slider -->
+          <div class="compare-view" id="view-slider">
+            <div class="slider-wrapper easel-frame" id="compare-slider-wrapper">
+              <canvas id="res-slider-user" width="480" height="360"></canvas>
+              <div class="slider-clip" id="slider-clip" style="width: 50%;">
+                <canvas id="res-slider-orig" width="480" height="360"></canvas>
+              </div>
+              <div class="slider-handle" id="slider-handle" style="left: 50%;">
+                <div class="slider-knob">⇄</div>
+              </div>
+              <span class="slider-tag tag-left">原作</span>
+              <span class="slider-tag tag-right">你的作品</span>
+              <input type="range" id="compare-slider-input" class="slider-range-input" min="0" max="100" value="50" aria-label="對比滑桿" />
+            </div>
+          </div>
+
+          <!-- Mode 3: Diff Heatmap -->
+          <div class="compare-view" id="view-diff">
+            <div class="single-compare-wrap">
+              <div class="easel-frame">
+                <canvas id="res-diff-canvas" width="480" height="360"></canvas>
+              </div>
+              <div class="diff-legend">
+                <span><i class="legend-dot dot-ok"></i> 色彩吻合</span>
+                <span><i class="legend-dot dot-miss"></i> 失誤 / 漏畫區域</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode 4: Overlay -->
+          <div class="compare-view" id="view-overlay">
+            <div class="single-compare-wrap">
+              <div class="easel-frame overlay-stack">
+                <canvas id="res-ov-user" width="480" height="360"></canvas>
+                <canvas id="res-ov-orig" width="480" height="360" class="overlay-top-canvas" style="opacity: 0.45;"></canvas>
+              </div>
+              <div class="overlay-opacity-control">
+                <span>你的作品</span>
+                <input type="range" id="overlay-opacity-slider" min="0" max="100" value="45" />
+                <span>原作真跡</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-Color Accuracy Breakdown -->
+        <div class="breakdown-panel">
+          <h3 class="breakdown-title">各色塊完成度分析</h3>
+          <div id="color-breakdown-list" class="color-breakdown-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Result Actions -->
+        <footer class="result-actions">
+          <button id="btn-retry-painting" class="btn btn-primary btn-lg">
+            ↻ 再挑戰一次
+          </button>
+          <button id="btn-next-painting" class="btn btn-secondary btn-lg">
+            下一幅名畫 →
+          </button>
+          <button id="btn-result-view-original" class="btn btn-secondary">
+            🖼 查看原畫
+          </button>
+          <button id="btn-download-postcard" class="btn btn-accent-outline">
+            ⬇ 下載對比明信片
+          </button>
+          <button id="btn-result-gallery" class="btn btn-ghost">
+            回到畫廊
+          </button>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ==================== RECORDS MODAL ==================== -->
+    <div id="modal-records" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="records-modal-title">
+      <div class="modal-card">
+        <header class="modal-header">
+          <h2 id="records-modal-title">🏆 臨摹分數紀錄</h2>
+          <button id="btn-close-records" class="btn btn-icon-only btn-sm" aria-label="關閉">✕</button>
+        </header>
+
+        <div class="modal-tabs">
+          <button class="modal-tab active" data-tab="best">各名畫最佳紀錄</button>
+          <button class="modal-tab" data-tab="history">最近挑戰歷史</button>
+        </div>
+
+        <div class="modal-body">
+          <div id="records-tab-best" class="records-list active"></div>
+          <div id="records-tab-history" class="records-list"></div>
+        </div>
+
+        <footer class="modal-footer">
+          <button id="btn-clear-records" class="btn btn-danger-ghost btn-sm">清除所有紀錄</button>
+          <button id="btn-close-records-bottom" class="btn btn-secondary btn-sm">關閉</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- ==================== VIEW ORIGINAL MASTERPIECE MODAL ==================== -->
+    <div id="modal-original" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="orig-modal-title">
+      <div class="modal-card modal-original-card">
+        <header class="modal-header">
+          <div>
+            <h2 id="orig-modal-title">名畫原圖</h2>
+            <div id="orig-modal-subtitle" class="orig-modal-subtitle">畫家 · 年份</div>
+          </div>
+          <button id="btn-close-original" class="btn btn-icon-only btn-sm" aria-label="關閉">✕</button>
+        </header>
+
+        <div class="modal-body orig-modal-body">
+          <div class="orig-image-frame">
+            <img id="orig-modal-img" class="orig-modal-img" alt="名畫原圖" />
+          </div>
+          <p id="orig-modal-desc" class="orig-modal-desc"></p>
+        </div>
+
+        <footer class="modal-footer">
+          <span class="orig-modal-note">公有領域名畫典藏原圖（非分色版本）</span>
+          <button id="btn-close-original-bottom" class="btn btn-primary btn-sm">回到畫室</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/audio.js"></script>
+  <script src="js/paintings-assets.js"></script>
+  <script src="js/paintings-core.js"></script>
+  <script src="js/paintings-part1.js"></script>
+  <script src="js/paintings-part2.js"></script>
+  <script src="js/paintings-intros.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

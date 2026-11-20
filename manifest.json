@@ -1,0 +1,25 @@
+{
+  "name": "名畫急就章 · Hasty Replicas",
+  "short_name": "名畫急就章",
+  "description": "30 幅歐美古典至印象派人物名畫與梵谷代表作，16 色幾何切面向量插畫，限時 3 分鐘極速臨摹挑戰！",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5EFE6",
+  "theme_color": "#1F1A17",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

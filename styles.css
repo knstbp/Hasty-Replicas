@@ -1018,6 +1018,25 @@ button, input {
   z-index: 10;
 }
 
+.ref-brush-cursor {
+  border: 2px dashed rgba(255, 255, 255, 0.96);
+  box-shadow: 0 0 0 1.5px rgba(20, 16, 13, 0.85), inset 0 0 0 1px rgba(20, 16, 13, 0.65);
+  z-index: 12;
+}
+
+.ref-brush-cursor::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 1.5px rgba(20, 16, 13, 0.9);
+  transform: translate(-50%, -50%);
+}
+
 /* Ready Overlay */
 .ready-overlay {
   position: absolute;

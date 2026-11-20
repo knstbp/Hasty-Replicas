@@ -1,36 +1,15 @@
-name: Record Leaderboard Score to GitHub Repo
+name: Sync Online Leaderboard to Repository
 
 on:
-  issues:
-    types: [opened]
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
-    inputs:
-      player:
-        description: 'Player Nickname'
-        required: true
-      paintingId:
-        description: 'Painting ID'
-        required: true
-      paintingTitle:
-        description: 'Painting Title'
-        required: true
-      accuracy:
-        description: 'Accuracy Percentage'
-        required: true
-      rank:
-        description: 'Rank (S/A/B/C/D/F)'
-        required: true
-      timeUsed:
-        description: 'Time Used (seconds)'
-        required: true
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
-  record-score:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[SCORE]')
+  sync-leaderboard:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
@@ -39,104 +18,76 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Update data/leaderboard.json
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          IN_PLAYER: ${{ inputs.player }}
-          IN_PAINTING_ID: ${{ inputs.paintingId }}
-          IN_PAINTING_TITLE: ${{ inputs.paintingTitle }}
-          IN_ACCURACY: ${{ inputs.accuracy }}
-          IN_RANK: ${{ inputs.rank }}
-          IN_TIME_USED: ${{ inputs.timeUsed }}
+      - name: Pull Live Scores & Merge into data/leaderboard.json
         run: |
           python3 - << 'EOF'
-          import json, os, re, datetime
+          import json, os, datetime, urllib.request
 
           path = "data/leaderboard.json"
           if os.path.exists(path):
               with open(path, "r", encoding="utf-8") as f:
                   db = json.load(f)
           else:
-              db = {"updatedAt": "", "repo": "knstbp/Hasty-Replicas", "entries": []}
+              db = {"updatedAt": "", "entries": []}
 
-          entry = None
-          if os.environ.get("EVENT_NAME") == "issues":
-              body = os.environ.get("ISSUE_BODY", "")
-              m = re.search(r"\{.*\}", body, re.S)
-              if m:
-                  entry = json.loads(m.group(0))
-          else:
-              entry = {
-                  "player": os.environ.get("IN_PLAYER", "匿名畫家"),
-                  "paintingId": os.environ.get("IN_PAINTING_ID", "mona-lisa"),
-                  "paintingTitle": os.environ.get("IN_PAINTING_TITLE", "蒙娜麗莎"),
-                  "accuracy": float(os.environ.get("IN_ACCURACY", "0")),
-                  "rank": os.environ.get("IN_RANK", "C"),
-                  "timeUsed": int(float(os.environ.get("IN_TIME_USED", "180"))),
-              }
+          entries = list(db.get("entries", []))
 
-          if entry:
-              player = str(entry.get("player", "匿名畫家")).strip()[:24] or "匿名畫家"
-              acc = max(0.0, min(100.0, round(float(entry.get("accuracy", 0)), 1)))
-              t_used = max(1, min(180, int(entry.get("timeUsed", 180))))
-              pid = str(entry.get("paintingId", "")).strip()
-              ptitle = str(entry.get("paintingTitle", "")).strip()
-              rank = str(entry.get("rank", "C")).strip()[:2]
-              today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-              new_item = {
-                  "id": f"gh-{int(datetime.datetime.utcnow().timestamp()*1000)}",
-                  "player": player,
-                  "paintingId": pid,
-                  "paintingTitle": ptitle,
-                  "accuracy": acc,
-                  "rank": rank,
-                  "timeUsed": t_used,
-                  "date": today
-              }
-              entries = db.get("entries", [])
-              # Keep player's best score per painting
-              replaced = False
-              for idx, ex in enumerate(entries):
-                  if ex.get("player") == player and ex.get("paintingId") == pid:
-                      if acc > float(ex.get("accuracy", 0)) or (acc == float(ex.get("accuracy", 0)) and t_used <= int(ex.get("timeUsed", 180))):
-                          entries[idx] = new_item
-                      replaced = True
-                      break
-              if not replaced:
-                  entries.append(new_item)
-              entries.sort(key=lambda x: (-float(x.get("accuracy", 0)), int(x.get("timeUsed", 180))))
-              db["entries"] = entries[:200]
-              db["updatedAt"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-              os.makedirs("data", exist_ok=True)
-              with open(path, "w", encoding="utf-8") as f:
-                  json.dump(db, f, ensure_ascii=False, indent=2)
+          try:
+              url = "https://ntfy.sh/hasty_replicas_lb_knstbp_v1/json?poll=1&since=48h"
+              req = urllib.request.Request(url, headers={"User-Agent": "HastyReplicasSync/1.0"})
+              with urllib.request.urlopen(req, timeout=15) as r:
+                  lines = r.read().decode("utf-8").strip().splitlines()
+              for line in lines:
+                  if not line.strip():
+                      continue
+                  pkt = json.loads(line)
+                  if pkt.get("event") == "message" and pkt.get("message"):
+                      payload = json.loads(pkt["message"])
+                      if isinstance(payload.get("entries"), list):
+                          entries.extend(payload["entries"])
+                      elif payload.get("player") and payload.get("paintingId"):
+                          entries.append(payload)
+          except Exception as e:
+              print("Relay fetch note:", e)
+
+          by_key = {}
+          for item in entries:
+              if not isinstance(item, dict) or not item.get("player") or not item.get("paintingId"):
+                  continue
+              player = str(item["player"]).strip()[:24]
+              pid = str(item["paintingId"]).strip()
+              key = f"{player.lower()}__{pid}"
+              acc = round(float(item.get("accuracy", 0)), 1)
+              t_used = max(1, min(180, int(item.get("timeUsed", 180))))
+              prev = by_key.get(key)
+              if not prev or acc > prev["accuracy"] or (acc == prev["accuracy"] and t_used < prev["timeUsed"]):
+                  by_key[key] = {
+                      "id": item.get("id") or f"gh-{int(datetime.datetime.utcnow().timestamp()*1000)}",
+                      "player": player,
+                      "paintingId": pid,
+                      "paintingTitle": str(item.get("paintingTitle") or pid),
+                      "accuracy": acc,
+                      "rank": str(item.get("rank") or "C")[:2],
+                      "timeUsed": t_used,
+                      "date": str(item.get("date") or datetime.datetime.utcnow().strftime("%Y-%m-%d"))[:10]
+                  }
+
+          merged = sorted(by_key.values(), key=lambda x: (-x["accuracy"], x["timeUsed"]))[:200]
+          db["entries"] = merged
+          db["updatedAt"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+          os.makedirs("data", exist_ok=True)
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(db, f, ensure_ascii=False, indent=2)
+              f.write("\n")
           EOF
 
-      - name: Commit and Push to main & gh-pages
+      - name: Commit and Push Updated data/leaderboard.json
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/leaderboard.json
-          git diff --staged --quiet || git commit -m "chore(leaderboard): record new player score"
-          git push origin main
-          git push origin main:gh-pages --force || true
-
-      - name: Close Score Issue
-        if: github.event_name == 'issues'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '✅ 分數已自動寫入 GitHub 空間 `data/leaderboard.json` 排行榜！'
-            });
-            await github.rest.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              state: 'closed'
-            });
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(leaderboard): auto-sync online leaderboard scores"
+            git push origin main
+            git push origin main:gh-pages --force || true
+          fi

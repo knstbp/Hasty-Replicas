@@ -43,8 +43,11 @@
           <div class="header-actions">
             <button id="btn-open-records" class="btn btn-secondary">
               <span class="btn-icon">🏆</span>
-              <span>全球排行與紀錄</span>
+              <span id="lbl-open-records">全球排行與紀錄</span>
               <span id="records-count-badge" class="count-badge">0</span>
+            </button>
+            <button id="btn-toggle-lang-home" class="btn btn-secondary btn-lang" title="切換語言 / Switch Language">
+              🌐 EN
             </button>
             <button id="btn-toggle-sound-home" class="btn btn-icon-only" title="切換音效" aria-label="切換音效">
               🔊
@@ -132,10 +135,13 @@
 
         <div class="hud-right">
           <button id="btn-grid-toggle" class="btn btn-ghost btn-sm" title="切換九宮格輔助線 (G)">
-            ⊞ <span class="hide-mobile">格線</span>
+            ⊞ <span class="hide-mobile" id="lbl-grid-btn">格線</span>
           </button>
           <button id="btn-peek" class="btn btn-accent-outline btn-sm" title="透視疊加原畫 2.5 秒 (Space)">
-            👁 <span class="hide-mobile">透視</span> <span id="peek-count" class="mini-badge">3</span>
+            👁 <span class="hide-mobile" id="lbl-peek-btn">透視</span> <span id="peek-count" class="mini-badge">3</span>
+          </button>
+          <button id="btn-toggle-lang-play" class="btn btn-ghost btn-sm" title="切換語言 / Switch Language">
+            🌐 EN
           </button>
           <button id="btn-toggle-sound-play" class="btn btn-icon-only btn-sm" title="切換音效">
             🔊
@@ -164,6 +170,7 @@
           <div class="easel-frame reference-frame" id="reference-frame" title="點擊原畫任意位置吸取該處顏色">
             <canvas id="ref-canvas" width="480" height="360"></canvas>
             <div class="grid-overlay" id="ref-grid-overlay"></div>
+            <div id="ref-brush-cursor" class="brush-cursor ref-brush-cursor" aria-hidden="true"></div>
             <div id="eyedrop-pip" class="eyedrop-pip" aria-hidden="true"></div>
           </div>
           <aside class="ref-plaque" id="ref-plaque" aria-label="名畫簡介">

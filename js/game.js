@@ -34,9 +34,16 @@
     lastStrokeAccuracy: 0,
     evalThrottleId: null,
 
-    // Gallery filters
+    // Gallery filters & language
     activeCategory: 'all',
     searchQuery: '',
+    lang: (function () {
+      try {
+        return localStorage.getItem('hasty_replicas_lang_v1') || 'zh';
+      } catch (e) {
+        return 'zh';
+      }
+    })(),
 
     // Cached offscreen evaluation canvases
     refEvalCanvas: document.createElement('canvas'),
@@ -88,6 +95,7 @@
     statAvgBest: $('stat-avg-best'),
     statTotalPlays: $('stat-total-plays'),
     catCountAll: $('cat-count-all'),
+    btnLangHome: $('btn-toggle-lang-home'),
     btnSoundHome: $('btn-toggle-sound-home'),
 
     // Play
@@ -103,6 +111,7 @@
     btnGridToggle: $('btn-grid-toggle'),
     btnPeek: $('btn-peek'),
     peekCount: $('peek-count'),
+    btnLangPlay: $('btn-toggle-lang-play'),
     btnSoundPlay: $('btn-toggle-sound-play'),
     btnSubmitEarly: $('btn-submit-early'),
 
@@ -112,6 +121,7 @@
     btnToggleRefSize: $('btn-toggle-ref-size'),
     refCanvas: $('ref-canvas'),
     refGridOverlay: $('ref-grid-overlay'),
+    refBrushCursor: $('ref-brush-cursor'),
     eyedropPip: $('eyedrop-pip'),
     refPlaque: $('ref-plaque'),
     refPlaqueTitle: $('ref-plaque-title'),
@@ -230,15 +240,328 @@
     }
   }
 
+  // ==================== LANGUAGE & I18N ====================
+  function isEn() {
+    return state.lang === 'en';
+  }
+
+  function pTitle(p) {
+    if (!p) return '';
+    return isEn() ? p.enTitle || p.title : p.title;
+  }
+
+  function pArtist(p) {
+    if (!p) return '';
+    if (isEn() && window.ARTIST_EN_MAP && window.ARTIST_EN_MAP[p.artist]) {
+      return window.ARTIST_EN_MAP[p.artist];
+    }
+    return p.artist;
+  }
+
+  function pIntro(p) {
+    if (!p) return '';
+    if (isEn() && window.PAINTING_INTROS_EN && window.PAINTING_INTROS_EN[p.id]) {
+      return window.PAINTING_INTROS_EN[p.id];
+    }
+    return (window.PAINTING_INTROS && window.PAINTING_INTROS[p.id]) || '';
+  }
+
+  function catLabel(cat) {
+    if (isEn() && window.CATEGORY_LABELS_EN && window.CATEGORY_LABELS_EN[cat]) {
+      return window.CATEGORY_LABELS_EN[cat];
+    }
+    return (window.CATEGORY_LABELS && window.CATEGORY_LABELS[cat]) || '';
+  }
+
+  function applyLanguageUI() {
+    const en = isEn();
+    document.documentElement.lang = en ? 'en' : 'zh-Hant';
+
+    const langBtnLabel = en ? '🌐 中文' : '🌐 EN';
+    if (dom.btnLangHome) dom.btnLangHome.textContent = langBtnLabel;
+    if (dom.btnLangPlay) dom.btnLangPlay.textContent = langBtnLabel;
+
+    // Gallery Header
+    const brandDesc = document.querySelector('.brand-desc');
+    if (brandDesc) {
+      brandDesc.textContent = en
+        ? 'No Undo. No Paint Bucket. 30 iconic Western classical-to-Impressionist portraits & Van Gogh masterpieces rendered as uncropped 16-color geometric vector facets. Recreate them in 3 minutes!'
+        : '沒有復原鍵、沒有油漆桶。精選 30 幅歐美古典至印象派人物名畫與梵谷代表作，保留原畫比例不裁切並轉化為 16 色幾何切面向量插畫，限時 3 分鐘極速臨摹！';
+    }
+    const modeSpans = document.querySelectorAll('.fixed-mode-badge span');
+    if (modeSpans.length >= 3) {
+      modeSpans[0].textContent = en ? '⏱ 3-Min Limit' : '⏱ 限時 3 分鐘';
+      modeSpans[2].textContent = en ? '🎨 16-Color Facets' : '🎨 16 色平塗';
+    }
+    const lblOpenRec = $('lbl-open-records');
+    if (lblOpenRec) lblOpenRec.textContent = en ? 'Leaderboard & Records' : '全球排行與紀錄';
+
+    // Stats Ribbon
+    const statLabels = document.querySelectorAll('.stats-ribbon .stat-label');
+    if (statLabels.length >= 3) {
+      statLabels[0].textContent = en ? 'Masterpieces Played' : '已挑戰名畫';
+      statLabels[1].textContent = en ? 'Average Best Accuracy' : '平均最佳完成度';
+      statLabels[2].textContent = en ? 'Total Attempts' : '總臨摹次數';
+    }
+    if (dom.btnRandom) dom.btnRandom.textContent = en ? '🎲 Random Masterpiece' : '🎲 隨機抽一幅名畫';
+
+    // Category Tabs
+    if (dom.categoryTabs) {
+      dom.categoryTabs.querySelectorAll('.cat-tab').forEach((btn) => {
+        const c = btn.dataset.cat;
+        if (c === 'all') {
+          const cnt = dom.catCountAll ? dom.catCountAll.textContent : '30';
+          btn.innerHTML = `${en ? 'All' : '全部'} <span class="cat-count" id="cat-count-all">${cnt}</span>`;
+          dom.catCountAll = $('cat-count-all');
+        } else if (c === 'unplayed') {
+          btn.textContent = en ? 'Unplayed' : '未挑戰';
+        } else {
+          btn.textContent = catLabel(c);
+        }
+      });
+    }
+    if (dom.gallerySearch) {
+      dom.gallerySearch.placeholder = en
+        ? 'Search painting or artist (e.g. Van Gogh, Mona Lisa, Vermeer)...'
+        : '搜尋畫作或畫家（如：梵谷、星夜、莫內）...';
+    }
+    const galFooter = document.querySelector('.gallery-footer span');
+    if (galFooter) {
+      galFooter.textContent = en
+        ? '💡 Tip: Every pixel counts equally — block in large background & clothing areas with the Large brush first, then refine facial details!'
+        : '💡 小提示：每個像素權重相同——先用大筆刷快速鋪滿背景與大色塊，再修細節最容易拿高分！';
+    }
+
+    // Studio HUD & Workspace
+    if (dom.btnBackGallery) dom.btnBackGallery.textContent = en ? '← Gallery' : '← 畫廊';
+    const accLabel = document.querySelector('.accuracy-label');
+    if (accLabel) accLabel.textContent = en ? 'Accuracy' : '完成度';
+    const lblGrid = $('lbl-grid-btn');
+    if (lblGrid) lblGrid.textContent = en ? 'Grid' : '格線';
+    const lblPeek = $('lbl-peek-btn');
+    if (lblPeek) lblPeek.textContent = en ? 'Peek' : '透視';
+    if (dom.btnSubmitEarly) dom.btnSubmitEarly.textContent = en ? 'Done ✓' : '交畫 ✓';
+
+    const refPanelTag = document.querySelector('#reference-panel .panel-tag');
+    if (refPanelTag) {
+      refPanelTag.innerHTML = en
+        ? 'Reference <small class="no-undo-hint">(💧 Click to pick color)</small>'
+        : '原畫參考 <small class="no-undo-hint">（💧 點擊畫面可吸取顏色）</small>';
+    }
+    if (dom.btnViewOriginal) dom.btnViewOriginal.textContent = en ? '🖼 View Original' : '🖼 查看原畫';
+    if (dom.btnToggleRefSize) dom.btnToggleRefSize.textContent = en ? 'Expand / Collapse' : '展開 / 縮小';
+
+    const playerPanelTag = document.querySelector('.player-tag');
+    if (playerPanelTag) {
+      playerPanelTag.innerHTML = en
+        ? 'Your Canvas <small class="no-undo-hint">(No Undo · Paint Over)</small>'
+        : '你的畫布 <small class="no-undo-hint">（無復原鍵 · 直接覆蓋重畫）</small>';
+    }
+
+    const readyEyebrow = document.querySelector('.ready-eyebrow');
+    if (readyEyebrow) readyEyebrow.textContent = en ? 'READY TO PAINT' : '準備臨摹';
+    const readyRules = document.querySelector('.ready-rules');
+    if (readyRules) {
+      readyRules.innerHTML = en
+        ? '<span>🚫 No Undo</span><span>🚫 No Bucket</span><span>💧 Click Reference to Pick Color</span><span>👁 3 Peeks</span>'
+        : '<span>🚫 無復原鍵</span><span>🚫 無油漆桶</span><span>💧 點擊原畫吸色</span><span>👁 3 次透視機會</span>';
+    }
+    if (dom.btnStartRound) dom.btnStartRound.textContent = en ? 'Pick Up Brush & Start!' : '拿起畫筆開始！';
+
+    // Bottom Dock
+    if (dom.dockPaletteLabel) {
+      dom.dockPaletteLabel.innerHTML = en
+        ? 'Palette <small>(1-9,0)</small>'
+        : '調色盤 <small>(1-9,0)</small>';
+    }
+    const dockLabels = document.querySelectorAll('.tool-dock .dock-label');
+    if (dockLabels.length >= 2) {
+      dockLabels[1].innerHTML = en
+        ? 'Brush Size <small>(Q/W/E/R)</small>'
+        : '筆刷大小 <small>(Q/W/E/R)</small>';
+    }
+    const brushLabels = document.querySelectorAll('#brush-sizes .brush-label');
+    const enSizes = ['XS', 'S', 'M', 'L'];
+    const zhSizes = ['細', '小', '中', '大'];
+    brushLabels.forEach((el, idx) => {
+      el.textContent = en ? enSizes[idx] || el.textContent : zhSizes[idx] || el.textContent;
+    });
+
+    // Result Screen
+    const resEyebrow = document.querySelector('.result-eyebrow');
+    if (resEyebrow) resEyebrow.textContent = en ? 'APPRAISAL REPORT' : '畫作鑑定報告';
+    if (dom.resultNewBest) dom.resultNewBest.textContent = en ? '★ NEW BEST!' : '★ 新紀錄！';
+    if (dom.compareModeGroup) {
+      const modeMap = en
+        ? { side: 'Side by Side', slider: 'Split Slider', diff: 'Error Heatmap', overlay: 'Overlay' }
+        : { side: '並列對比', slider: '拉桿對比', diff: '誤差熱圖', overlay: '原畫疊加' };
+      dom.compareModeGroup.querySelectorAll('.pill-btn').forEach((b) => {
+        if (modeMap[b.dataset.mode]) b.textContent = modeMap[b.dataset.mode];
+      });
+    }
+    const compareLabels = document.querySelectorAll('#view-side .compare-card-label');
+    if (compareLabels.length >= 2) {
+      compareLabels[0].textContent = en ? 'Masterpiece Reference' : '原作真跡';
+      compareLabels[1].textContent = en ? 'Your Replica' : '你的臨摹作品';
+    }
+    const tagLeft = document.querySelector('.slider-tag.tag-left');
+    const tagRight = document.querySelector('.slider-tag.tag-right');
+    if (tagLeft) tagLeft.textContent = en ? 'Reference' : '原作';
+    if (tagRight) tagRight.textContent = en ? 'Yours' : '你的作品';
+
+    const breakdownTitle = document.querySelector('.breakdown-title');
+    if (breakdownTitle) breakdownTitle.textContent = en ? 'Per-Color Accuracy Breakdown' : '各色塊完成度分析';
+
+    const lbSubmitTitle = document.querySelector('.lb-submit-title');
+    if (lbSubmitTitle) lbSubmitTitle.textContent = en ? '🌍 Submit to Global Leaderboard' : '🌍 登錄全球排行榜';
+    const lbSubmitDesc = document.querySelector('.lb-submit-desc');
+    if (lbSubmitDesc) {
+      lbSubmitDesc.textContent = en
+        ? 'Enter your artist nickname to record this score on the online global leaderboard'
+        : '輸入畫家署名即可將本次臨摹成績登錄至全球排行榜';
+    }
+    if (dom.btnResultOpenLeaderboard) {
+      dom.btnResultOpenLeaderboard.textContent = en ? '🏆 View Leaderboard' : '🏆 查看完整排行榜';
+    }
+    if (dom.playerNameInput) {
+      dom.playerNameInput.placeholder = en
+        ? 'Enter artist nickname (e.g. Studio Arles)...'
+        : '輸入畫家署名（例如：阿爾勒畫徒）...';
+    }
+    if (dom.btnSubmitLeaderboard) {
+      dom.btnSubmitLeaderboard.textContent = en ? '🏆 Submit Score' : '🏆 登錄成績';
+    }
+
+    if (dom.btnRetry) dom.btnRetry.textContent = en ? '↻ Try Again' : '↻ 再挑戰一次';
+    if (dom.btnNext) dom.btnNext.textContent = en ? 'Next Masterpiece →' : '下一幅名畫 →';
+    if (dom.btnResultViewOriginal) dom.btnResultViewOriginal.textContent = en ? '🖼 View Original' : '🖼 查看原畫';
+    if (dom.btnDownload) dom.btnDownload.textContent = en ? '⬇ Download Postcard' : '⬇ 下載對比明信片';
+    if (dom.btnResultGallery) dom.btnResultGallery.textContent = en ? 'Back to Gallery' : '回到畫廊';
+
+    // Leaderboard & Records Modal
+    const recModalTitle = $('records-modal-title');
+    if (recModalTitle) recModalTitle.textContent = en ? '🏆 Global Leaderboard & Personal Records' : '🏆 全球排行榜與個人紀錄';
+    document.querySelectorAll('#modal-records .modal-tab').forEach((t) => {
+      if (t.dataset.tab === 'global') t.textContent = en ? '🌍 Global Leaderboard' : '🌍 全球排行榜';
+      if (t.dataset.tab === 'best') t.textContent = en ? 'Personal Best' : '各名畫個人最佳';
+      if (t.dataset.tab === 'history') t.textContent = en ? 'Recent History' : '本機挑戰歷史';
+    });
+    const filterLbl = document.querySelector('.global-lb-label');
+    if (filterLbl) filterLbl.textContent = en ? 'Filter Painting:' : '篩選名畫：';
+    if (dom.btnRefreshGlobalLb) dom.btnRefreshGlobalLb.textContent = en ? '🔄 Refresh' : '🔄 重新整理';
+    if (dom.btnClearRecords) dom.btnClearRecords.textContent = en ? 'Clear Local Records' : '清除本機紀錄';
+    if (dom.btnCloseRecordsBottom) dom.btnCloseRecordsBottom.textContent = en ? 'Close' : '關閉';
+    if (dom.btnCloseOriginalBottom) dom.btnCloseOriginalBottom.textContent = en ? 'Back to Studio' : '回到畫室';
+    const origNote = document.querySelector('.orig-modal-note');
+    if (origNote) origNote.textContent = en ? 'Public domain museum scan (original un-vectorized painting)' : '公有領域名畫典藏原圖（非分色版本）';
+
+    // Refresh filter dropdown & active views
+    if (dom.globalLbFilter) {
+      const curVal = dom.globalLbFilter.value || 'all';
+      dom.globalLbFilter.innerHTML = `<option value="all">${en ? '🔥 Global Top 50' : '🔥 全站總榜 Top 50'}</option>`;
+      window.PAINTINGS.forEach((p) => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${pTitle(p)} (${pArtist(p)})`;
+        dom.globalLbFilter.appendChild(opt);
+      });
+      dom.globalLbFilter.value = curVal;
+    }
+
+    renderGallery();
+
+    // If currently in Studio, refresh HUD & plaque text in active language
+    if (state.currentPainting) {
+      const p = state.currentPainting;
+      const starStr = starsText(p.difficulty);
+      const facetUnit = en ? 'facets' : '色塊';
+      const facetText = p.facets ? (en ? ` (${p.facets} ${facetUnit})` : `（${p.facets} ${facetUnit}）`) : '';
+      const diffWord = en ? 'Difficulty' : '難度';
+      dom.playTitle.textContent = pTitle(p);
+      dom.playColorBadge.textContent = `${diffWord} ${starStr}`;
+      dom.playArtist.textContent = `${pArtist(p)} (${p.year})`;
+      dom.refPlaqueTitle.textContent = en ? `${p.enTitle} (${p.title})` : `${p.title} (${p.enTitle})`;
+      dom.refPlaqueMeta.textContent = `${pArtist(p)} · ${p.year} · ${diffWord} ${starStr}${facetText}`;
+      dom.refPlaqueDesc.textContent = pIntro(p);
+      dom.readyTitle.textContent = pTitle(p);
+      const palLen = (state.activePalette || p.palette).length;
+      dom.readyMeta.textContent = en
+        ? `${diffWord} ${starStr}${facetText} · ${palLen}-Color Vector · 3-Min Limit`
+        : `${diffWord} ${starStr}${facetText} · ${palLen} 色向量插畫 · 限時 3 分鐘`;
+    }
+  }
+
+  function toggleLanguage() {
+    state.lang = state.lang === 'en' ? 'zh' : 'en';
+    try {
+      localStorage.setItem('hasty_replicas_lang_v1', state.lang);
+    } catch (e) {}
+    window.SoundFX.click();
+    applyLanguageUI();
+    if (!dom.modalRecords.classList.contains('hidden')) {
+      renderRecordsModal();
+      renderGlobalLeaderboardTab();
+    }
+  }
+
   // ==================== RANKING & CRITIC QUOTES ====================
   function getRankInfo(acc) {
-    if (acc >= 90) return { label: 'S+', cls: 'rank-Splus', quote: '「羅浮宮保全已緊急出動！這幅贗品幾乎能騙過紅外線鑑定！」' };
-    if (acc >= 80) return { label: 'S', cls: 'rank-S', quote: '「驚人的神韻與構圖！佳士得拍賣行差點直接落槌成交。」' };
-    if (acc >= 70) return { label: 'A', cls: 'rank-A', quote: '「遠看是傳世名作，近看充滿奔放的極速筆觸，非常出色！」' };
-    if (acc >= 58) return { label: 'B', cls: 'rank-B', quote: '「神似度相當不錯，只要展廳燈光調暗一點就沒人發現了。」' };
-    if (acc >= 45) return { label: 'C', cls: 'rank-C', quote: '「這是一種充滿個人情感的靈魂臨摹，原作畫家可能會微微皺眉。」' };
-    if (acc >= 30) return { label: 'D', cls: 'rank-D', quote: '「色彩分布很有野性美，建議改稱『向大師致敬的抽象再創作』。」' };
-    return { label: 'F', cls: 'rank-F', quote: '「這已經完全超越了臨摹，開創了全新的後現代草率主義流派！」' };
+    const en = isEn();
+    if (acc >= 90)
+      return {
+        label: 'S+',
+        cls: 'rank-Splus',
+        quote: en
+          ? '"Louvre security is on high alert! This replica could fool an infrared scanner!"'
+          : '「羅浮宮保全已緊急出動！這幅贗品幾乎能騙過紅外線鑑定！」'
+      };
+    if (acc >= 80)
+      return {
+        label: 'S',
+        cls: 'rank-S',
+        quote: en
+          ? '"Breathtaking composition and spirit! Christie’s almost hammered it sold."'
+          : '「驚人的神韻與構圖！佳士得拍賣行差點直接落槌成交。」'
+      };
+    if (acc >= 70)
+      return {
+        label: 'A',
+        cls: 'rank-A',
+        quote: en
+          ? '"From afar a timeless masterpiece; up close, bold and expressive speed-painting!"'
+          : '「遠看是傳世名作，近看充滿奔放的極速筆觸，非常出色！」'
+      };
+    if (acc >= 58)
+      return {
+        label: 'B',
+        cls: 'rank-B',
+        quote: en
+          ? '"Quite a solid likeness — dim the gallery lights a bit and nobody will notice."'
+          : '「神似度相當不錯，只要展廳燈光調暗一點就沒人發現了。」'
+      };
+    if (acc >= 45)
+      return {
+        label: 'C',
+        cls: 'rank-C',
+        quote: en
+          ? '"A soulful interpretation full of personal flair, though the original master might raise an eyebrow."'
+          : '「這是一種充滿個人情感的靈魂臨摹，原作畫家可能會微微皺眉。」'
+      };
+    if (acc >= 30)
+      return {
+        label: 'D',
+        cls: 'rank-D',
+        quote: en
+          ? '"Wildly expressive color placement — let’s call it an Abstract Homage to the Master."'
+          : '「色彩分布很有野性美，建議改稱『向大師致敬的抽象再創作』。」'
+      };
+    return {
+      label: 'F',
+      cls: 'rank-F',
+      quote: en
+        ? '"Transcends replication entirely — you have founded Post-Modern Hasty Expressionism!"'
+        : '「這已經完全超越了臨摹，開創了全新的後現代草率主義流派！」'
+    };
   }
 
   function formatTime(sec) {
@@ -344,11 +667,14 @@
     if (filtered.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'gallery-empty';
-      empty.textContent = '找不到符合條件的名畫，試試其他分類或關鍵字！';
+      empty.textContent = isEn()
+        ? 'No matching masterpieces found. Try another category or keyword!'
+        : '找不到符合條件的名畫，試試其他分類或關鍵字！';
       dom.galleryGrid.appendChild(empty);
       return;
     }
 
+    const en = isEn();
     const frag = document.createDocumentFragment();
     filtered.forEach((p) => {
       const best = state.records.bestById[p.id];
@@ -367,22 +693,30 @@
 
       const initialThumb = state.thumbCache[p.id] || window.ArtHelpers.getOriginalImageUrl(p);
       const starStr = starsText(p.difficulty);
-      const facetHint = p.facets ? `難度 ${p.difficulty} 星（約 ${p.facets} 個幾何色塊）` : `難度 ${p.difficulty} 星`;
+      const facetHint = p.facets
+        ? en
+          ? `Difficulty ${p.difficulty}/5 (~${p.facets} facets)`
+          : `難度 ${p.difficulty} 星（約 ${p.facets} 個幾何色塊）`
+        : en
+        ? `Difficulty ${p.difficulty}/5`
+        : `難度 ${p.difficulty} 星`;
+      const facetUnit = en ? 'facets' : '色塊';
+      const ctaText = best ? (en ? 'Play Again →' : '再次挑戰 →') : en ? 'Start Painting →' : '開始臨摹 →';
       card.innerHTML = `
         <div class="card-preview-wrap">
-          <img class="card-preview-canvas" data-pid="${p.id}" alt="${p.title}" loading="lazy" src="${initialThumb}" />
+          <img class="card-preview-canvas" data-pid="${p.id}" alt="${pTitle(p)}" loading="lazy" src="${initialThumb}" />
           ${bestBadgeHtml}
-          <span class="card-category-pill">${window.CATEGORY_LABELS[p.category] || ''}</span>
+          <span class="card-category-pill">${catLabel(p.category)}</span>
         </div>
         <div class="card-body">
           <div class="card-title-row">
-            <h3 class="card-title">${p.title}</h3>
+            <h3 class="card-title">${pTitle(p)}</h3>
             <span class="card-stars" title="${facetHint}">${starStr}</span>
           </div>
-          <p class="card-subtitle">${p.artist} · ${p.year}${p.facets ? ` · ${p.facets} 色塊` : ''}</p>
+          <p class="card-subtitle">${pArtist(p)} · ${p.year}${p.facets ? ` · ${p.facets} ${facetUnit}` : ''}</p>
           <div class="card-footer-row">
-            <div class="card-palette-dots" title="16 種精選色塊">${dotsHtml}</div>
-            <span class="card-play-cta">${best ? '再次挑戰 →' : '開始臨摹 →'}</span>
+            <div class="card-palette-dots" title="${en ? '16 curated palette colors' : '16 種精選色塊'}">${dotsHtml}</div>
+            <span class="card-play-cta">${ctaText}</span>
           </div>
         </div>
       `;
@@ -480,25 +814,33 @@
     state.lastStrokeAccuracy = 0;
 
     // HUD labels & Museum Plaque
+    const en = isEn();
+    const diffWord = en ? 'Difficulty' : '難度';
     const starStr = starsText(painting.difficulty);
-    const facetText = painting.facets ? `（${painting.facets} 色塊）` : '';
-    dom.playTitle.textContent = painting.title;
-    dom.playColorBadge.textContent = `難度 ${starStr}`;
-    dom.playArtist.textContent = `${painting.artist} (${painting.year})`;
-    dom.refPlaqueTitle.textContent = `${painting.title} (${painting.enTitle})`;
-    dom.refPlaqueMeta.textContent = `${painting.artist} · ${painting.year} · 難度 ${starStr}${facetText}`;
-    dom.refPlaqueDesc.textContent = (window.PAINTING_INTROS && window.PAINTING_INTROS[painting.id]) || '';
+    const facetText = painting.facets ? (en ? ` (${painting.facets} facets)` : `（${painting.facets} 色塊）`) : '';
+    dom.playTitle.textContent = pTitle(painting);
+    dom.playColorBadge.textContent = `${diffWord} ${starStr}`;
+    dom.playArtist.textContent = `${pArtist(painting)} (${painting.year})`;
+    dom.refPlaqueTitle.textContent = en
+      ? `${painting.enTitle} (${painting.title})`
+      : `${painting.title} (${painting.enTitle})`;
+    dom.refPlaqueMeta.textContent = `${pArtist(painting)} · ${painting.year} · ${diffWord} ${starStr}${facetText}`;
+    dom.refPlaqueDesc.textContent = pIntro(painting);
     dom.refPlaque.classList.remove('expanded');
     dom.timerDisplay.textContent = formatTime(state.timeLeft);
     dom.timerBox.classList.remove('warning');
     dom.peekCount.textContent = String(state.peeksLeft);
     dom.btnPeek.disabled = false;
     dom.strokeDelta.textContent = '';
+    if (dom.brushCursor) dom.brushCursor.style.display = 'none';
+    if (dom.refBrushCursor) dom.refBrushCursor.style.display = 'none';
     updateLiveAccuracyUI(0);
 
     // Ready overlay
-    dom.readyTitle.textContent = painting.title;
-    dom.readyMeta.textContent = `難度 ${starStr}${facetText} · 16 色向量插畫 · 限時 3 分鐘`;
+    dom.readyTitle.textContent = pTitle(painting);
+    dom.readyMeta.textContent = en
+      ? `${diffWord} ${starStr}${facetText} · 16-Color Vector · 3-Min Limit`
+      : `${diffWord} ${starStr}${facetText} · 16 色向量插畫 · 限時 3 分鐘`;
     dom.readyOverlay.classList.remove('hidden');
 
     if (painting.canvasW && painting.canvasH) {
@@ -553,10 +895,18 @@
         state.refPaletteIndices[i] = bestIdx;
       }
 
-      const updatedFacetText = painting.facets ? `（${painting.facets} 色塊）` : '';
-      dom.playColorBadge.textContent = `難度 ${starStr}`;
-      dom.refPlaqueMeta.textContent = `${painting.artist} · ${painting.year} · 難度 ${starStr}${updatedFacetText}`;
-      dom.readyMeta.textContent = `難度 ${starStr}${updatedFacetText} · ${palette.length} 色向量插畫 · 限時 3 分鐘`;
+      const curEn = isEn();
+      const curDiffWord = curEn ? 'Difficulty' : '難度';
+      const updatedFacetText = painting.facets
+        ? curEn
+          ? ` (${painting.facets} facets)`
+          : `（${painting.facets} 色塊）`
+        : '';
+      dom.playColorBadge.textContent = `${curDiffWord} ${starStr}`;
+      dom.refPlaqueMeta.textContent = `${pArtist(painting)} · ${painting.year} · ${curDiffWord} ${starStr}${updatedFacetText}`;
+      dom.readyMeta.textContent = curEn
+        ? `${curDiffWord} ${starStr}${updatedFacetText} · ${palette.length}-Color Vector · 3-Min Limit`
+        : `${curDiffWord} ${starStr}${updatedFacetText} · ${palette.length} 色向量插畫 · 限時 3 分鐘`;
       buildPaletteUI(palette);
       selectColor(0, false);
     };
@@ -578,14 +928,15 @@
   function buildPaletteUI(palette) {
     dom.paletteContainer.innerHTML = '';
     const count = palette.length;
+    const en = isEn();
     dom.paletteContainer.className =
       'palette-swatches ' + (count > 10 ? 'swatches-16' : count > 6 ? 'swatches-10' : 'swatches-6');
 
     if (dom.dockPaletteLabel) {
       dom.dockPaletteLabel.innerHTML =
         count <= 6
-          ? `調色盤 <small>(1-${count})</small>`
-          : `調色盤 <small>(1-9,0)</small>`;
+          ? `${en ? 'Palette' : '調色盤'} <small>(1-${count})</small>`
+          : `${en ? 'Palette' : '調色盤'} <small>(1-9,0)</small>`;
     }
 
     palette.forEach((hex, idx) => {
@@ -593,9 +944,9 @@
       btn.className = 'swatch-btn';
       btn.style.backgroundColor = hex;
       const keyLabel = idx < 9 ? String(idx + 1) : idx === 9 ? '0' : String(idx + 1);
-      const shortcutHint = idx < 10 ? ` (快捷鍵 ${keyLabel})` : '';
-      btn.title = `顏色 ${idx + 1}${shortcutHint}`;
-      btn.setAttribute('aria-label', `選擇顏色 ${idx + 1}`);
+      const shortcutHint = idx < 10 ? (en ? ` (Key ${keyLabel})` : ` (快捷鍵 ${keyLabel})`) : '';
+      btn.title = `${en ? 'Color' : '顏色'} ${idx + 1}${shortcutHint}`;
+      btn.setAttribute('aria-label', `${en ? 'Select Color' : '選擇顏色'} ${idx + 1}`);
       btn.innerHTML = `<span class="swatch-key">${keyLabel}</span>`;
       btn.addEventListener('click', () => selectColor(idx, true));
       dom.paletteContainer.appendChild(btn);
@@ -765,20 +1116,44 @@
   }
 
   function updateBrushCursor(e) {
-    if (e.pointerType !== 'mouse') {
-      dom.brushCursor.style.display = 'none';
-      return;
-    }
-    const frameRect = dom.playerFrame.getBoundingClientRect();
     const canvasRect = dom.drawCanvas.getBoundingClientRect();
-    const scale = canvasRect.width / state.canvasW;
-    const displayDiameter = Math.max(6, state.brushSize * scale);
+    if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
 
-    dom.brushCursor.style.display = 'block';
-    dom.brushCursor.style.width = `${displayDiameter}px`;
-    dom.brushCursor.style.height = `${displayDiameter}px`;
-    dom.brushCursor.style.left = `${e.clientX - frameRect.left}px`;
-    dom.brushCursor.style.top = `${e.clientY - frameRect.top}px`;
+    const normX = Math.max(0, Math.min(1, (e.clientX - canvasRect.left) / canvasRect.width));
+    const normY = Math.max(0, Math.min(1, (e.clientY - canvasRect.top) / canvasRect.height));
+
+    // 1. Player canvas brush cursor (for mouse/pen)
+    if (e.pointerType === 'mouse' || e.pointerType === 'pen' || !e.pointerType) {
+      const frameRect = dom.playerFrame.getBoundingClientRect();
+      const scale = canvasRect.width / state.canvasW;
+      const displayDiameter = Math.max(6, state.brushSize * scale);
+
+      dom.brushCursor.style.display = 'block';
+      dom.brushCursor.style.width = `${displayDiameter}px`;
+      dom.brushCursor.style.height = `${displayDiameter}px`;
+      dom.brushCursor.style.left = `${e.clientX - frameRect.left}px`;
+      dom.brushCursor.style.top = `${e.clientY - frameRect.top}px`;
+    } else {
+      dom.brushCursor.style.display = 'none';
+    }
+
+    // 2. Synchronized Reference Painting brush position cursor (for mouse, pen & touch!)
+    if (dom.refBrushCursor && dom.refCanvas && dom.referenceFrame) {
+      const refFrameRect = dom.referenceFrame.getBoundingClientRect();
+      const refCanvasRect = dom.refCanvas.getBoundingClientRect();
+      if (refCanvasRect.width > 0 && refCanvasRect.height > 0) {
+        const refScale = refCanvasRect.width / state.canvasW;
+        const refDiameter = Math.max(6, state.brushSize * refScale);
+        const refLeft = refCanvasRect.left - refFrameRect.left + normX * refCanvasRect.width;
+        const refTop = refCanvasRect.top - refFrameRect.top + normY * refCanvasRect.height;
+
+        dom.refBrushCursor.style.display = 'block';
+        dom.refBrushCursor.style.width = `${refDiameter}px`;
+        dom.refBrushCursor.style.height = `${refDiameter}px`;
+        dom.refBrushCursor.style.left = `${refLeft}px`;
+        dom.refBrushCursor.style.top = `${refTop}px`;
+      }
+    }
   }
 
   function handlePointerDown(e) {
@@ -787,6 +1162,7 @@
     dom.drawCanvas.setPointerCapture(e.pointerId);
     state.isDrawing = true;
     state.lastStrokeAccuracy = state.liveAccuracy;
+    updateBrushCursor(e);
     const pt = getCanvasCoords(e);
     state.lastPt = pt;
     paintDab(pt.x, pt.y);
@@ -803,7 +1179,10 @@
     scheduleLiveEvaluation();
   }
 
-  function handlePointerUp() {
+  function handlePointerUp(e) {
+    if (e && e.pointerType === 'touch' && dom.refBrushCursor) {
+      dom.refBrushCursor.style.display = 'none';
+    }
     if (!state.isDrawing) return;
     state.isDrawing = false;
     state.lastPt = null;
@@ -968,13 +1347,16 @@
     saveRecords();
 
     // Populate Result Header
-    dom.resultTitle.textContent = `${p.title} · ${p.artist}`;
+    const en = isEn();
+    dom.resultTitle.textContent = `${pTitle(p)} · ${pArtist(p)}`;
     dom.resultCritic.textContent = rank.quote;
     dom.resultAccuracy.textContent = acc.toFixed(1);
     dom.resultRankStamp.textContent = rank.label;
     dom.resultRankStamp.className = `rank-stamp ${rank.cls}`;
     dom.resultNewBest.classList.toggle('hidden', !isNewBest);
-    dom.resultTimeUsed.textContent = `${modeLabel} · 用時 ${formatTime(timeUsed)} / ${formatTime(state.timeLimit)}`;
+    dom.resultTimeUsed.textContent = en
+      ? `3 Min · ${colorCount} Colors · Time ${formatTime(timeUsed)} / ${formatTime(state.timeLimit)}`
+      : `${modeLabel} · 用時 ${formatTime(timeUsed)} / ${formatTime(state.timeLimit)}`;
 
     // Populate Comparison Canvases
     copyCanvas(dom.refCanvas, dom.resOrigCanvas);
@@ -988,10 +1370,11 @@
     renderDiffCanvas(result.matchMask, false);
     renderColorBreakdown(result.breakdown);
 
-    // Prepare GitHub Global Leaderboard submission box
+    // Prepare Global Leaderboard submission box
     state.lastRoundSummary = {
       paintingId: p.id,
       paintingTitle: p.title,
+      paintingEnTitle: p.enTitle,
       accuracy: acc,
       rank: rank.label,
       timeUsed
@@ -999,11 +1382,12 @@
     if (window.GitHubLeaderboard && dom.playerNameInput) {
       const savedName = window.GitHubLeaderboard.getPlayerName();
       dom.playerNameInput.value = savedName;
-      updateGhIssueSubmitLink(savedName || '匿名畫家');
       if (savedName) {
         submitCurrentScoreToLeaderboard(false);
       } else if (dom.lbSubmitStatus) {
-        dom.lbSubmitStatus.textContent = '💡 輸入畫家署名並點擊「登錄成績」，即可列入全球排行榜！';
+        dom.lbSubmitStatus.textContent = en
+          ? '💡 Enter your artist nickname and click "Submit Score" to join the online leaderboard!'
+          : '💡 輸入畫家署名並點擊「登錄成績」，即可列入全球排行榜！';
       }
     }
 
@@ -1013,31 +1397,22 @@
     syncSliderGeometry();
   }
 
-  function updateGhIssueSubmitLink(playerName) {
-    if (!window.GitHubLeaderboard || !dom.btnGhIssueSubmit || !state.lastRoundSummary) return;
-    const entry = {
-      player: String(playerName || '匿名畫家').trim() || '匿名畫家',
-      paintingId: state.lastRoundSummary.paintingId,
-      paintingTitle: state.lastRoundSummary.paintingTitle,
-      accuracy: Number(state.lastRoundSummary.accuracy.toFixed(1)),
-      rank: state.lastRoundSummary.rank,
-      timeUsed: state.lastRoundSummary.timeUsed
-    };
-    dom.btnGhIssueSubmit.href = window.GitHubLeaderboard.getGitHubActionIssueUrl(entry);
-  }
-
   async function submitCurrentScoreToLeaderboard(requireInput = true) {
     if (!window.GitHubLeaderboard || !state.lastRoundSummary) return;
+    const en = isEn();
     const rawName = dom.playerNameInput ? dom.playerNameInput.value.trim() : '';
     if (requireInput && !rawName) {
       dom.playerNameInput.focus();
-      dom.lbSubmitStatus.textContent = '⚠️ 請先輸入您的畫家署名（暱稱）！';
+      dom.lbSubmitStatus.textContent = en
+        ? '⚠️ Please enter your artist nickname first!'
+        : '⚠️ 請先輸入您的畫家署名（暱稱）！';
       return;
     }
-    const playerName = rawName || window.GitHubLeaderboard.getPlayerName() || '匿名畫家';
-    updateGhIssueSubmitLink(playerName);
+    const playerName = rawName || window.GitHubLeaderboard.getPlayerName() || (en ? 'Anonymous Artist' : '匿名畫家');
     if (dom.lbSubmitStatus) {
-      dom.lbSubmitStatus.textContent = '⏳ 正在計算名次並同步至雲端排行榜…';
+      dom.lbSubmitStatus.textContent = en
+        ? '⏳ Updating online leaderboard…'
+        : '⏳ 正在計算名次並更新線上排行榜…';
     }
     const res = await window.GitHubLeaderboard.submitScore({
       player: playerName,
@@ -1048,8 +1423,15 @@
       timeUsed: state.lastRoundSummary.timeUsed
     });
     if (dom.lbSubmitStatus && res && res.ok) {
-      dom.lbSubmitStatus.textContent = `🏅 《${state.lastRoundSummary.paintingTitle}》第 ${res.paintingRank} 名 · 全站總榜第 ${res.overallRank} 名 — ${res.syncMessage}`;
+      const displayTitle = en
+        ? state.lastRoundSummary.paintingEnTitle || state.lastRoundSummary.paintingTitle
+        : state.lastRoundSummary.paintingTitle;
+      dom.lbSubmitStatus.textContent = en
+        ? `🏅 #${res.paintingRank} on "${displayTitle}" · #${res.overallRank} Overall — ✅ Online Leaderboard Updated!`
+        : `🏅 《${displayTitle}》第 ${res.paintingRank} 名 · 全站總榜第 ${res.overallRank} 名 — ✅ 已自動更新線上排行榜！`;
     }
+    // Automatically refresh the leaderboard list in the background
+    renderGlobalLeaderboardTab();
   }
 
   function copyCanvas(src, dst) {
@@ -1102,6 +1484,7 @@
 
   function renderColorBreakdown(breakdown) {
     dom.colorBreakdownList.innerHTML = '';
+    const en = isEn();
     breakdown.forEach((item, idx) => {
       if (item.total === 0) return;
       const el = document.createElement('div');
@@ -1110,7 +1493,7 @@
         <span class="color-stat-swatch" style="background:${item.hex}"></span>
         <div class="color-stat-info">
           <div class="color-stat-top">
-            <span>色塊 #${idx + 1}</span>
+            <span>${en ? 'Color' : '色塊'} #${idx + 1}</span>
             <span>${item.pct.toFixed(0)}%</span>
           </div>
           <div class="color-stat-bar">
@@ -1160,16 +1543,21 @@
     ctx.fillRect(0, 0, out.width, out.height);
 
     // Header text
+    const en = isEn();
     ctx.fillStyle = '#1F1A17';
     ctx.font = 'bold 28px "Noto Sans TC", sans-serif';
-    ctx.fillText(`名畫急就章 · ${p.title} (${p.artist})`, 40, 52);
+    ctx.fillText(
+      en ? `Hasty Replicas · ${pTitle(p)} (${pArtist(p)})` : `名畫急就章 · ${p.title} (${p.artist})`,
+      40,
+      52
+    );
 
     const acc = lastDetailedResult.accuracy;
     const rank = getRankInfo(acc);
     ctx.fillStyle = '#9E7122';
     ctx.font = 'bold 26px "JetBrains Mono", monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`完成度 ${acc.toFixed(1)}%  [${rank.label}]`, 1040, 52);
+    ctx.fillText(en ? `Accuracy ${acc.toFixed(1)}%  [${rank.label}]` : `完成度 ${acc.toFixed(1)}%  [${rank.label}]`, 1040, 52);
     ctx.textAlign = 'left';
 
     // Frames (fit true aspect ratio cleanly inside the two postcard slots)
@@ -1193,8 +1581,8 @@
 
     ctx.fillStyle = '#5C524B';
     ctx.font = 'bold 18px "Noto Sans TC", sans-serif';
-    ctx.fillText(`原作參考（16 色 · 3 分鐘）`, 44, 474);
-    ctx.fillText('你的臨摹作品', 564, 474);
+    ctx.fillText(en ? 'Reference (16 Colors · 3 Min)' : '原作參考（16 色 · 3 分鐘）', 44, 474);
+    ctx.fillText(en ? 'Your Replica' : '你的臨摹作品', 564, 474);
 
     ctx.fillStyle = '#8A7F76';
     ctx.font = '15px "Noto Sans TC", sans-serif';
@@ -1212,9 +1600,10 @@
     const p = state.currentPainting;
     if (!p) return;
     window.SoundFX.click();
-    dom.origModalTitle.textContent = `${p.title} (${p.enTitle})`;
-    dom.origModalSubtitle.textContent = `${p.artist} · ${p.year} · ${window.CATEGORY_LABELS[p.category] || ''}`;
-    dom.origModalDesc.textContent = (window.PAINTING_INTROS && window.PAINTING_INTROS[p.id]) || '';
+    const en = isEn();
+    dom.origModalTitle.textContent = en ? `${p.enTitle} (${p.title})` : `${p.title} (${p.enTitle})`;
+    dom.origModalSubtitle.textContent = `${pArtist(p)} · ${p.year} · ${catLabel(p.category)}`;
+    dom.origModalDesc.textContent = pIntro(p);
     dom.origModalImg.onerror = () => {
       dom.origModalImg.onerror = null;
       dom.origModalImg.src = dom.refCanvas.toDataURL('image/png');
@@ -1233,7 +1622,7 @@
     window.PAINTINGS.forEach((p) => {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = `${p.title} (${p.artist})`;
+      opt.textContent = `${pTitle(p)} (${pArtist(p)})`;
       dom.globalLbFilter.appendChild(opt);
     });
   }
@@ -1241,32 +1630,39 @@
   async function renderGlobalLeaderboardTab() {
     if (!window.GitHubLeaderboard || !dom.globalLbList) return;
     populateGlobalFilterOptions();
+    const en = isEn();
 
-    dom.globalLbStatus.textContent = '⏳ 正在同步最新排行榜…';
+    dom.globalLbStatus.textContent = en ? '⏳ Syncing live online leaderboard…' : '⏳ 正在同步最新排行榜…';
     const db = await window.GitHubLeaderboard.fetchLeaderboard();
     const filterId = dom.globalLbFilter ? dom.globalLbFilter.value : 'all';
     const allEntries = Array.isArray(db.entries) ? db.entries : [];
     const filtered =
       filterId === 'all' ? allEntries.slice(0, 50) : allEntries.filter((e) => e.paintingId === filterId).slice(0, 30);
 
-    const syncTime = db.updatedAt ? new Date(db.updatedAt).toLocaleString('zh-TW') : '';
-    dom.globalLbStatus.textContent = `📊 全球即時排行榜${syncTime ? ` · 更新於 ${syncTime}` : ''}`;
+    const syncTime = db.updatedAt ? new Date(db.updatedAt).toLocaleString(en ? 'en-US' : 'zh-TW') : '';
+    dom.globalLbStatus.textContent = en
+      ? `📊 Live Global Leaderboard${syncTime ? ` · Updated ${syncTime}` : ''}`
+      : `📊 全球即時排行榜${syncTime ? ` · 更新於 ${syncTime}` : ''}`;
 
     dom.globalLbList.innerHTML = '';
     if (!filtered.length) {
-      dom.globalLbList.innerHTML = '<div class="empty-records">此畫作目前尚無全球排行紀錄，快來搶下第一名！</div>';
+      dom.globalLbList.innerHTML = `<div class="empty-records">${
+        en ? 'No global records for this masterpiece yet — be the first to claim #1!' : '此畫作目前尚無全球排行紀錄，快來搶下第一名！'
+      }</div>`;
       return;
     }
 
     filtered.forEach((item, idx) => {
       const rankInfo = getRankInfo(item.accuracy);
       const medal = idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `#${idx + 1}`;
+      const matchedP = window.PAINTINGS.find((p) => p.id === item.paintingId);
+      const pName = matchedP ? pTitle(matchedP) : item.paintingTitle;
       const row = document.createElement('div');
       row.className = `lb-row${idx === 0 ? ' lb-top-1' : ''}`;
       row.innerHTML = `
         <div class="lb-rank-num">${medal}</div>
         <div class="lb-player-name" title="${item.player}">${item.player}</div>
-        <div class="lb-painting-info" title="${item.paintingTitle} · ${item.date || ''}">《${item.paintingTitle}》 <small>${item.date || ''}</small></div>
+        <div class="lb-painting-info" title="${pName} · ${item.date || ''}">${en ? `"${pName}"` : `《${pName}》`} <small>${item.date || ''}</small></div>
         <div class="lb-score-col">
           <span class="lb-time-val">${formatTime(item.timeUsed || 180)}</span>
           <span class="rank-pill ${rankInfo.cls}">${item.rank || rankInfo.label}</span>
@@ -1293,21 +1689,29 @@
   }
 
   function renderRecordsModal() {
+    const en = isEn();
     // Tab 2: Best per painting
     const bestList = Object.values(state.records.bestById).sort((a, b) => b.bestAccuracy - a.bestAccuracy);
     dom.recordsTabBest.innerHTML = '';
     if (!bestList.length) {
-      dom.recordsTabBest.innerHTML = '<div class="empty-records">還沒有任何臨摹紀錄，快選一幅名畫開始挑戰吧！</div>';
+      dom.recordsTabBest.innerHTML = `<div class="empty-records">${
+        en ? 'No records yet — pick a masterpiece and start painting!' : '還沒有任何臨摹紀錄，快選一幅名畫開始挑戰吧！'
+      }</div>`;
     } else {
       bestList.forEach((item) => {
+        const matchedP = window.PAINTINGS.find((p) => p.id === item.id);
+        const titleStr = matchedP ? pTitle(matchedP) : item.title;
+        const artistStr = matchedP ? pArtist(matchedP) : item.artist;
         const rank = getRankInfo(item.bestAccuracy);
         const row = document.createElement('div');
         row.className = 'record-row';
         row.innerHTML = `
-          <img class="record-thumb" src="${item.bestThumb || ''}" alt="${item.title}" />
+          <img class="record-thumb" src="${item.bestThumb || ''}" alt="${titleStr}" />
           <div class="record-info">
-            <div class="record-title">${item.title}</div>
-            <div class="record-meta">${item.artist} · 挑戰 ${item.plays} 次 · 最佳用時 ${formatTime(item.bestTimeUsed)}</div>
+            <div class="record-title">${titleStr}</div>
+            <div class="record-meta">${artistStr} · ${
+          en ? `${item.plays} plays · Best time ${formatTime(item.bestTimeUsed)}` : `挑戰 ${item.plays} 次 · 最佳用時 ${formatTime(item.bestTimeUsed)}`
+        }</div>
           </div>
           <div class="record-score">
             <span class="rank-pill ${rank.cls}">${item.bestRank}</span>
@@ -1321,17 +1725,23 @@
     // Tab 3: Recent history
     dom.recordsTabHistory.innerHTML = '';
     if (!state.records.history.length) {
-      dom.recordsTabHistory.innerHTML = '<div class="empty-records">尚無挑戰歷史紀錄。</div>';
+      dom.recordsTabHistory.innerHTML = `<div class="empty-records">${
+        en ? 'No recent play history yet.' : '尚無挑戰歷史紀錄。'
+      }</div>`;
     } else {
       state.records.history.forEach((item) => {
+        const matchedP = window.PAINTINGS.find((p) => p.id === item.id);
+        const titleStr = matchedP ? pTitle(matchedP) : item.title;
         const rank = getRankInfo(item.accuracy);
         const row = document.createElement('div');
         row.className = 'record-row';
         row.innerHTML = `
-          <img class="record-thumb" src="${item.thumb || ''}" alt="${item.title}" />
+          <img class="record-thumb" src="${item.thumb || ''}" alt="${titleStr}" />
           <div class="record-info">
-            <div class="record-title">${item.title}</div>
-            <div class="record-meta">${item.date} · ${item.difficultyLabel || `${item.timeLimit}秒模式`} (用時 ${formatTime(item.timeUsed)})</div>
+            <div class="record-title">${titleStr}</div>
+            <div class="record-meta">${item.date} · ${
+          en ? `Time ${formatTime(item.timeUsed)}` : `用時 ${formatTime(item.timeUsed)}`
+        }</div>
           </div>
           <div class="record-score">
             <span class="rank-pill ${rank.cls}">${item.rank}</span>
@@ -1370,7 +1780,10 @@
       openPaintingStudio(pick);
     });
 
-    // Sound toggles
+    // Language & Sound toggles
+    if (dom.btnLangHome) dom.btnLangHome.addEventListener('click', toggleLanguage);
+    if (dom.btnLangPlay) dom.btnLangPlay.addEventListener('click', toggleLanguage);
+
     const toggleSound = () => {
       window.SoundFX.toggleMute();
       updateSoundIcons();
@@ -1434,6 +1847,7 @@
     dom.drawCanvas.addEventListener('pointercancel', handlePointerUp);
     dom.drawCanvas.addEventListener('pointerleave', () => {
       dom.brushCursor.style.display = 'none';
+      if (dom.refBrushCursor) dom.refBrushCursor.style.display = 'none';
     });
 
     // Result controls
@@ -1495,9 +1909,6 @@
       });
     }
     if (dom.playerNameInput) {
-      dom.playerNameInput.addEventListener('input', (e) => {
-        updateGhIssueSubmitLink(e.target.value);
-      });
       dom.playerNameInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -1531,41 +1942,6 @@
         renderGlobalLeaderboardTab();
       });
     }
-    if (dom.btnToggleGhConfig && dom.ghConfigBox) {
-      dom.btnToggleGhConfig.addEventListener('click', () => {
-        window.SoundFX.click();
-        dom.ghConfigBox.classList.toggle('hidden');
-      });
-    }
-    if (dom.btnSaveGhToken && dom.ghTokenInput) {
-      dom.btnSaveGhToken.addEventListener('click', () => {
-        window.SoundFX.click();
-        const saved = window.GitHubLeaderboard.setToken(dom.ghTokenInput.value);
-        dom.ghConfigStatus.textContent = saved
-          ? '✅ 已儲存 GitHub Fine-Grained Token！之後完賽將自動寫入 knstbp/Hasty-Replicas/data/leaderboard.json'
-          : 'ℹ️ 已清除 GitHub Token。';
-        renderGlobalLeaderboardTab();
-      });
-    }
-    if (dom.btnCopySyncLink) {
-      dom.btnCopySyncLink.addEventListener('click', async () => {
-        window.SoundFX.click();
-        if (dom.ghTokenInput && dom.ghTokenInput.value.trim()) {
-          window.GitHubLeaderboard.setToken(dom.ghTokenInput.value.trim());
-        }
-        if (!window.GitHubLeaderboard.hasToken()) {
-          dom.ghConfigStatus.textContent = '⚠️ 請先在上方貼上 GitHub Fine-Grained Token 再複製競賽分享連結！';
-          return;
-        }
-        const url = window.GitHubLeaderboard.getShareableSyncUrl();
-        try {
-          await navigator.clipboard.writeText(url);
-          dom.ghConfigStatus.textContent = '🔗 已複製免設定競賽連結！任何人打開此連結完賽即可自動寫入 GitHub 空間排行榜。';
-        } catch (e) {
-          dom.ghConfigStatus.textContent = '連結：' + url;
-        }
-      });
-    }
 
     document.querySelectorAll('.modal-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -1579,7 +1955,10 @@
     });
 
     dom.btnClearRecords.addEventListener('click', () => {
-      if (!confirm('確定要清除所有名畫的最佳紀錄與挑戰歷史嗎？')) return;
+      const msg = isEn()
+        ? 'Are you sure you want to clear all local personal best records and play history?'
+        : '確定要清除所有名畫的最佳紀錄與挑戰歷史嗎？';
+      if (!confirm(msg)) return;
       state.records = { bestById: {}, history: [] };
       saveRecords();
       renderRecordsModal();
@@ -1627,5 +2006,5 @@
   loadRecords();
   updateSoundIcons();
   bindEvents();
-  renderGallery();
+  applyLanguageUI();
 })();

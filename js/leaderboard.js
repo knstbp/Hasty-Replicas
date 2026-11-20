@@ -1,20 +1,19 @@
 /* ==========================================================================
-   GitHub Repository Cloud Leaderboard Engine (data/leaderboard.json)
-   Repository: https://github.com/knstbp/Hasty-Replicas
-   Supports:
-   1. Live read from GitHub Contents API / Raw GitHub / local data/leaderboard.json
-   2. Direct automatic commit to GitHub repo `data/leaderboard.json` via Fine-Grained
-      PAT (or shared `#sync=` link fragment so players need zero setup!)
-   3. One-click GitHub Actions Issue auto-bot fallback (`.github/workflows/leaderboard.yml`)
+   Real-Time Cloud Leaderboard Engine
+   - Instant real-time multi-user sync via public cloud relay (`ntfy.sh`)
+   - Permanent historical archive in `data/leaderboard.json` (auto-synced by
+     GitHub Actions built-in GITHUB_TOKEN without requiring any user setup!)
    ========================================================================== */
 
 (function () {
   const REPO_OWNER = 'knstbp';
   const REPO_NAME = 'Hasty-Replicas';
   const FILE_PATH = 'data/leaderboard.json';
+  const CLOUD_RELAY_TOPIC = 'hasty_replicas_lb_knstbp_v1';
+  const CLOUD_RELAY_POST_URL = `https://ntfy.sh/${CLOUD_RELAY_TOPIC}`;
+  const CLOUD_RELAY_POLL_URL = `https://ntfy.sh/${CLOUD_RELAY_TOPIC}/json?poll=1&since=48h`;
 
   const LS_PLAYER_NAME = 'hasty_replicas_player_name_v1';
-  const LS_GH_TOKEN = 'hasty_replicas_gh_sync_token_v1';
   const LS_LOCAL_CACHE = 'hasty_replicas_leaderboard_cache_v1';
 
   const DEFAULT_ENTRIES = [
@@ -49,45 +48,6 @@
       date: '2026-11-20'
     }
   ];
-
-  // Auto-import `#sync=<base64_token>` from shared URL hash so players don't need manual setup
-  function checkUrlHashToken() {
-    try {
-      const hash = window.location.hash || '';
-      const m = hash.match(/[#&]sync=([A-Za-z0-9+/=_-]+)/);
-      if (m && m[1]) {
-        const decoded = atob(m[1].replace(/-/g, '+').replace(/_/g, '/')).trim();
-        if (decoded && (decoded.startsWith('github_pat_') || decoded.startsWith('ghp_') || decoded.startsWith('gho_'))) {
-          localStorage.setItem(LS_GH_TOKEN, decoded);
-          if (window.history && window.history.replaceState) {
-            window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
-          }
-        }
-      }
-    } catch (e) {
-      // ignore malformed hash
-    }
-  }
-  checkUrlHashToken();
-
-  function utf8ToBase64(str) {
-    const bytes = new TextEncoder().encode(str);
-    let bin = '';
-    for (let i = 0; i < bytes.length; i++) {
-      bin += String.fromCharCode(bytes[i]);
-    }
-    return btoa(bin);
-  }
-
-  function base64ToUtf8(b64) {
-    const clean = b64.replace(/\s+/g, '');
-    const bin = atob(clean);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) {
-      bytes[i] = bin.charCodeAt(i);
-    }
-    return new TextDecoder('utf-8').decode(bytes);
-  }
 
   function mergeAndSortEntries(listA, listB) {
     const map = new Map();
@@ -136,7 +96,6 @@
     } catch (e) {}
     return {
       updatedAt: new Date().toISOString(),
-      repo: `${REPO_OWNER}/${REPO_NAME}`,
       entries: DEFAULT_ENTRIES.slice()
     };
   }
@@ -147,10 +106,54 @@
     } catch (e) {}
   }
 
-  window.GitHubLeaderboard = {
-    repoUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}`,
-    fileUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/${FILE_PATH}`,
+  async function fetchCloudRelayEntries() {
+    try {
+      const resp = await fetch(`${CLOUD_RELAY_POLL_URL}&t=${Date.now()}`, { cache: 'no-store' });
+      if (!resp.ok) return [];
+      const text = await resp.text();
+      const lines = text.trim().split('\n');
+      let entries = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        try {
+          const pkt = JSON.parse(line);
+          if (pkt && pkt.event === 'message' && pkt.message) {
+            const payload = JSON.parse(pkt.message);
+            if (payload && Array.isArray(payload.entries)) {
+              entries = mergeAndSortEntries(entries, payload.entries);
+            } else if (payload && payload.player && payload.paintingId) {
+              entries = mergeAndSortEntries(entries, [payload]);
+            }
+          }
+        } catch (e) {}
+      }
+      return entries;
+    } catch (e) {
+      return [];
+    }
+  }
 
+  async function fetchRepoArchiveEntries() {
+    const urls = [
+      `./${FILE_PATH}?t=${Date.now()}`,
+      `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}?t=${Date.now()}`
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const resp = await fetch(urls[i], { cache: 'no-store' });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && Array.isArray(data.entries)) {
+            return data.entries;
+          }
+        }
+      } catch (e) {}
+    }
+    return [];
+  }
+
+  window.GitHubLeaderboard = {
     getPlayerName() {
       try {
         return (localStorage.getItem(LS_PLAYER_NAME) || '').trim();
@@ -167,110 +170,35 @@
       return clean;
     },
 
-    getToken() {
-      try {
-        if (window.__GH_LB_A && window.__GH_LB_B) {
-          return (atob(window.__GH_LB_A) + atob(window.__GH_LB_B)).trim();
-        }
-        return (localStorage.getItem(LS_GH_TOKEN) || '').trim();
-      } catch (e) {
-        return '';
-      }
-    },
-
-    setToken(token) {
-      const clean = String(token || '').trim();
-      try {
-        if (clean) {
-          localStorage.setItem(LS_GH_TOKEN, clean);
-        } else {
-          localStorage.removeItem(LS_GH_TOKEN);
-        }
-      } catch (e) {}
-      return clean;
-    },
-
-    hasToken() {
-      return Boolean(this.getToken());
-    },
-
-    getShareableSyncUrl() {
-      const token = this.getToken();
-      const base = `https://${REPO_OWNER}.github.io/${REPO_NAME}/`;
-      if (!token) return base;
-      const b64 = btoa(token).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      return `${base}#sync=${b64}`;
-    },
-
     /**
-     * Fetches the latest `data/leaderboard.json` from the GitHub repository
-     * and merges it with local cached entries.
+     * Fetches and merges:
+     * 1. Real-time online cloud relay scores (`ntfy.sh`)
+     * 2. Permanent repository archive (`data/leaderboard.json`)
+     * 3. Local cache & seed entries
      */
     async fetchLeaderboard() {
       const localDb = loadLocalCache();
-      const token = this.getToken();
-      const headers = {
-        Accept: 'application/vnd.github+json'
+      const [relayEntries, archiveEntries] = await Promise.all([
+        fetchCloudRelayEntries(),
+        fetchRepoArchiveEntries()
+      ]);
+
+      let merged = mergeAndSortEntries(DEFAULT_ENTRIES, archiveEntries);
+      merged = mergeAndSortEntries(merged, localDb.entries);
+      merged = mergeAndSortEntries(merged, relayEntries);
+
+      const result = {
+        updatedAt: new Date().toISOString(),
+        entries: merged,
+        source: relayEntries.length ? 'cloud-live' : 'archive'
       };
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-
-      // 1. Try GitHub Contents REST API (always fresh, no CDN delay)
-      try {
-        const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=main&t=${Date.now()}`;
-        const resp = await fetch(apiUrl, { headers, cache: 'no-store' });
-        if (resp.ok) {
-          const meta = await resp.json();
-          if (meta && meta.content) {
-            const remoteDb = JSON.parse(base64ToUtf8(meta.content));
-            const mergedEntries = mergeAndSortEntries(remoteDb.entries, localDb.entries);
-            const result = {
-              updatedAt: remoteDb.updatedAt || new Date().toISOString(),
-              repo: `${REPO_OWNER}/${REPO_NAME}`,
-              entries: mergedEntries,
-              sha: meta.sha,
-              source: 'github-api'
-            };
-            saveLocalCache(result);
-            return result;
-          }
-        }
-      } catch (e) {}
-
-      // 2. Fallback to raw.githubusercontent.com or local ./data/leaderboard.json
-      const urls = [
-        `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}?t=${Date.now()}`,
-        `./${FILE_PATH}?t=${Date.now()}`
-      ];
-      for (let i = 0; i < urls.length; i++) {
-        try {
-          const resp = await fetch(urls[i], { cache: 'no-store' });
-          if (resp.ok) {
-            const remoteDb = await resp.json();
-            const mergedEntries = mergeAndSortEntries(remoteDb.entries, localDb.entries);
-            const result = {
-              updatedAt: remoteDb.updatedAt || new Date().toISOString(),
-              repo: `${REPO_OWNER}/${REPO_NAME}`,
-              entries: mergedEntries,
-              source: i === 0 ? 'github-raw' : 'local-json'
-            };
-            saveLocalCache(result);
-            return result;
-          }
-        } catch (e) {}
-      }
-
-      localDb.entries = mergeAndSortEntries(localDb.entries, DEFAULT_ENTRIES);
-      localDb.source = 'local-cache';
-      return localDb;
+      saveLocalCache(result);
+      return result;
     },
 
     /**
-     * Submits a player's score:
-     * - Immediately saves and ranks in the merged leaderboard
-     * - If a GitHub token is configured (or imported via `#sync=`), automatically commits
-     *   the updated `data/leaderboard.json` directly into `knstbp/Hasty-Replicas` on GitHub!
+     * Submits a player's score and automatically broadcasts it to the live
+     * online cloud leaderboard (zero setup required!).
      */
     async submitScore({ player, paintingId, paintingTitle, accuracy, rank, timeUsed }) {
       const cleanPlayer = this.setPlayerName(player || this.getPlayerName() || '匿名畫家') || '匿名畫家';
@@ -289,7 +217,6 @@
       const updatedEntries = mergeAndSortEntries(currentDb.entries, [newEntry]);
       const updatedDb = {
         updatedAt: new Date().toISOString(),
-        repo: `${REPO_OWNER}/${REPO_NAME}`,
         entries: updatedEntries
       };
       saveLocalCache(updatedDb);
@@ -303,134 +230,32 @@
       const paintingRank =
         paintingEntries.findIndex((e) => e.player.toLowerCase() === cleanPlayer.toLowerCase()) + 1;
 
-      const token = this.getToken();
-      let githubSynced = false;
-      let syncMessage = '';
-
-      if (token) {
-        try {
-          const commitRes = await this.commitToGitHubRepo(updatedDb, cleanPlayer, paintingTitle, newEntry.accuracy);
-          githubSynced = commitRes.ok;
-          syncMessage = commitRes.ok ? '✅ 已自動登錄至雲端排行榜！' : '✅ 已登錄至排行榜！';
-        } catch (err) {
-          githubSynced = false;
-          syncMessage = '✅ 已登錄至排行榜！';
-        }
-      } else {
-        syncMessage = '✅ 已登錄至排行榜！';
+      // Broadcast compact snapshot (top 25 + new entry) to real-time cloud relay
+      let cloudSynced = false;
+      try {
+        const snapshotEntries = mergeAndSortEntries(updatedEntries.slice(0, 24), [newEntry]);
+        const payload = JSON.stringify({
+          type: 'lb_snapshot',
+          entries: snapshotEntries
+        });
+        const resp = await fetch(CLOUD_RELAY_POST_URL, {
+          method: 'POST',
+          body: payload
+        });
+        cloudSynced = resp.ok;
+      } catch (e) {
+        cloudSynced = false;
       }
 
       return {
         ok: true,
-        githubSynced,
-        syncMessage,
+        cloudSynced,
         entry: newEntry,
         overallRank,
         paintingRank,
         totalPaintingEntries: paintingEntries.length,
         db: updatedDb
       };
-    },
-
-    async commitToGitHubRepo(dbToSave, player, paintingTitle, accuracy) {
-      const token = this.getToken();
-      if (!token) {
-        return { ok: false, message: '尚未設定 GitHub Token' };
-      }
-
-      const headers = {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-
-      const branches = ['main', 'gh-pages'];
-      let committedMain = false;
-      let lastErr = '';
-
-      for (let b = 0; b < branches.length; b++) {
-        const branch = branches[b];
-        try {
-          // Get latest SHA on this branch
-          const getUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${branch}&t=${Date.now()}`;
-          const getResp = await fetch(getUrl, { headers, cache: 'no-store' });
-          let sha = undefined;
-          let existingEntries = [];
-          if (getResp.ok) {
-            const meta = await getResp.json();
-            sha = meta.sha;
-            if (meta.content) {
-              try {
-                const remoteJson = JSON.parse(base64ToUtf8(meta.content));
-                existingEntries = remoteJson.entries || [];
-              } catch (e) {}
-            }
-          }
-
-          const finalPayload = {
-            updatedAt: new Date().toISOString(),
-            repo: `${REPO_OWNER}/${REPO_NAME}`,
-            entries: mergeAndSortEntries(existingEntries, dbToSave.entries)
-          };
-
-          const jsonText = JSON.stringify(finalPayload, null, 2) + '\n';
-          const putUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-          const bodyObj = {
-            message: `🏆 排行榜更新：${player} 在《${paintingTitle}》達成 ${accuracy}%`,
-            content: utf8ToBase64(jsonText),
-            branch
-          };
-          if (sha) bodyObj.sha = sha;
-
-          const putResp = await fetch(putUrl, {
-            method: 'PUT',
-            headers,
-            body: JSON.stringify(bodyObj)
-          });
-
-          if (putResp.ok) {
-            if (branch === 'main') committedMain = true;
-          } else {
-            const errJson = await putResp.json().catch(() => ({}));
-            lastErr = errJson.message || `HTTP ${putResp.status}`;
-          }
-        } catch (err) {
-          lastErr = err.message || String(err);
-        }
-      }
-
-      if (committedMain) {
-        return {
-          ok: true,
-          message: '✅ 已自動寫入 GitHub 空間 (data/leaderboard.json)！'
-        };
-      }
-      return {
-        ok: false,
-        message: `GitHub 寫入失敗 (${lastErr || '請確認 Fine-Grained Token 具備 Contents: Read & Write 權限'})`
-      };
-    },
-
-    getGitHubActionIssueUrl(entry) {
-      const title = `[SCORE] ${entry.player} - ${entry.paintingTitle} (${entry.accuracy}%)`;
-      const payload = JSON.stringify(
-        {
-          player: entry.player,
-          paintingId: entry.paintingId,
-          paintingTitle: entry.paintingTitle,
-          accuracy: entry.accuracy,
-          rank: entry.rank,
-          timeUsed: entry.timeUsed
-        },
-        null,
-        2
-      );
-      const body =
-        `請點擊下方綠色 **「Submit new issue」** 按鈕，GitHub Actions 機器人會自動將您的成績寫入儲存庫 \`data/leaderboard.json\` 並關閉此單據：\n\n` +
-        '```json\n' +
-        payload +
-        '\n```';
-      return `https://github.com/${REPO_OWNER}/${REPO_NAME}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
     }
   };
 })();

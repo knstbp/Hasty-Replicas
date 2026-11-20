@@ -41,3 +41,72 @@ window.PAINTING_INTROS = {
   'dr-gachet': '梵谷在奧維爾為照料他的嘉舍醫師所繪，醫師單手托腮、神情憂鬱，桌上擺放的毛地黃花枝成為後印象派肖像經典。',
   'starry-night': '梵谷在聖雷米療養院創作的經典之作，奔騰旋轉的深藍夜空、發光星月與前景如火焰般的柏樹交織出強烈情感。'
 };
+
+window.PAINTING_INTROS_EN = {
+  // Renaissance (8)
+  'mona-lisa': 'Painted with Leonardo da Vinci’s signature sfumato technique, her enigmatic smile and misty mountain backdrop make this the world’s most famous portrait.',
+  'lady-ermine': 'Leonardo’s portrait of Cecilia Gallerani holding a white ermine captures a lively three-quarter turn and luminous Renaissance grace.',
+  'ginevra-benci': 'An early Leonardo masterpiece framing golden-brown curls against dark juniper foliage to convey Florentine nobility and poise.',
+  'la-belle-ferronniere': 'A Milanese court portrait by Leonardo featuring a jeweled ferronnière headband and sculptural chiaroscuro modeling.',
+  'man-red-turban': 'Jan van Eyck’s Northern Renaissance tour de force, famous for its intricately folded crimson turban and direct, piercing gaze.',
+  'young-woman-botticelli': 'Botticelli’s crisp profile portrait of Simonetta Vespucci highlights her graceful neckline and braided Renaissance coiffure.',
+  'baldassare-castiglione': 'Raphael’s warm portrait of his friend and diplomat Castiglione in dark velvet and soft fur embodies High Renaissance harmony.',
+  'duke-urbino': 'Piero della Francesca’s iconic scarlet profile of Federico da Montefeltro set against a sweeping Umbrian river valley.',
+
+  // Baroque & Rococo (7)
+  'pearl-earring': 'Often called the "Mona Lisa of the North," Vermeer sets a turning girl in a blue-and-gold turban and glowing pearl against deep darkness.',
+  'milkmaid': 'Vermeer bathes a quiet domestic corner in natural window light as a kitchen maid pours milk with serene concentration.',
+  'rembrandt-self': 'Rembrandt’s late masterwork shows the artist in a white cap holding palette and brushes before two enigmatic geometric circles.',
+  'laughing-cavalier': 'Frans Hals captures an upturned mustache, broad black hat, and opulent lace collar with dazzling, spirited brushwork.',
+  'bacchus': 'Caravaggio’s youthful wine god crowned with grape leaves extends a brimming glass of red wine toward the viewer.',
+  'pope-innocent-x': 'Velázquez’s famously piercing portrait of Pope Innocent X in blazing crimson silk cape and crisp white surplice.',
+  'blue-boy': 'Gainsborough’s celebrated full-dress portrait of a youth in shimmering cerulean satin holding a plumed hat.',
+
+  // Neoclassical, Romantic & Realist (6)
+  'vigee-straw-hat': 'Élisabeth Vigée Le Brun’s sunlit self-portrait in a floral straw hat radiates effortless Rococo charm and warmth.',
+  'death-of-marat': 'Jacques-Louis David’s stark Neoclassical tribute to French revolutionary Jean-Paul Marat, sculpted by dramatic light and shadow.',
+  'napoleon-alps': 'David’s heroic equestrian portrait of Napoleon in a billowing red cloak leading his army across the Alps.',
+  'princesse-broglie': 'Ingres’s late Neoclassical triumph, celebrated for the luminous sky-blue satin gown and poised aristocratic calm.',
+  'whistlers-mother': 'Titled "Arrangement in Grey and Black No. 1," Whistler’s austere profile composition is an icon of tonal harmony.',
+  'madame-x': 'John Singer Sargent’s dramatic Parisian society portrait contrasting a jet-black gown against porcelain skin in bold profile.',
+
+  // Impressionism & Van Gogh (9)
+  'the-fifer': 'Inspired by Japanese woodblock prints, Manet flattens space into bold planes of crimson trousers, dark tunic, and neutral ground.',
+  'berthe-morisot': 'Manet’s striking portrait of fellow Impressionist Berthe Morisot in a dramatic black hat and mourning dress.',
+  'van-gogh-beardless': 'Painted in Saint-Rémy shortly after shaving his beard, this intense close-up is one of Van Gogh’s final self-portraits.',
+  'irene-renoir': 'Renoir’s beloved portrait of young Irène Cahen d’Anvers with cascading auburn hair against lush garden foliage.',
+  'van-gogh-self': 'Van Gogh’s Saint-Rémy self-portrait pairs swirling turquoise rhythms with a steady, resolute gaze.',
+  'van-gogh-bandaged': 'Painted in Arles with fur cap and bandaged ear, expressing quiet resilience and devotion to his easel.',
+  'postman-roulin': 'Van Gogh’s warm tribute to his Arles friend Joseph Roulin in a cobalt postal coat and flowing curly beard.',
+  'dr-gachet': 'Van Gogh’s melancholic portrait of Dr. Gachet resting his cheek on his hand beside a sprig of foxglove in Auvers.',
+  'starry-night': 'Van Gogh’s visionary nocturne of swirling cobalt skies, glowing stars, and flame-like cypress above a quiet village.'
+};
+
+window.ARTIST_EN_MAP = {
+  '李奧納多·達文西': 'Leonardo da Vinci',
+  '揚·范·艾克': 'Jan van Eyck',
+  '桑德羅·波提切利': 'Sandro Botticelli',
+  '拉斐爾': 'Raphael',
+  '皮耶羅·德拉·法蘭契斯卡': 'Piero della Francesca',
+  '約翰尼斯·維梅爾': 'Johannes Vermeer',
+  '林布蘭': 'Rembrandt van Rijn',
+  '法蘭斯·哈爾斯': 'Frans Hals',
+  '卡拉瓦喬': 'Caravaggio',
+  '迪亞哥·委拉斯開茲': 'Diego Velázquez',
+  '湯瑪斯·庚斯博羅': 'Thomas Gainsborough',
+  '伊莉莎白·薇姬·勒布倫': 'Élisabeth Vigée Le Brun',
+  '雅克-路易·大衛': 'Jacques-Louis David',
+  '尚-奧古斯特-多米尼克·安格爾': 'Jean-Auguste-Dominique Ingres',
+  '詹姆斯·惠斯勒': 'James McNeill Whistler',
+  '約翰·辛格·薩金特': 'John Singer Sargent',
+  '愛德華·馬內': 'Édouard Manet',
+  '文森·梵谷': 'Vincent van Gogh',
+  '皮耶-奧古斯特·雷諾瓦': 'Pierre-Auguste Renoir'
+};
+
+window.CATEGORY_LABELS_EN = {
+  renaissance: 'Renaissance',
+  baroque: 'Baroque & Rococo',
+  romanticism: 'Neoclassical & Realism',
+  impressionism: 'Impressionism & Van Gogh'
+};

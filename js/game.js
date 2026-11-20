@@ -1003,7 +1003,7 @@
       if (savedName) {
         submitCurrentScoreToLeaderboard(false);
       } else if (dom.lbSubmitStatus) {
-        dom.lbSubmitStatus.textContent = '💡 輸入畫家署名並點擊「登錄成績」，即可列入排行榜並同步至 GitHub 空間！';
+        dom.lbSubmitStatus.textContent = '💡 輸入畫家署名並點擊「登錄成績」，即可列入全球排行榜！';
       }
     }
 
@@ -1037,7 +1037,7 @@
     const playerName = rawName || window.GitHubLeaderboard.getPlayerName() || '匿名畫家';
     updateGhIssueSubmitLink(playerName);
     if (dom.lbSubmitStatus) {
-      dom.lbSubmitStatus.textContent = '⏳ 正在計算名次並同步至 GitHub 排行榜…';
+      dom.lbSubmitStatus.textContent = '⏳ 正在計算名次並同步至雲端排行榜…';
     }
     const res = await window.GitHubLeaderboard.submitScore({
       player: playerName,
@@ -1242,30 +1242,15 @@
     if (!window.GitHubLeaderboard || !dom.globalLbList) return;
     populateGlobalFilterOptions();
 
-    if (dom.ghTokenInput) {
-      dom.ghTokenInput.value = window.GitHubLeaderboard.getToken();
-    }
-    if (dom.ghConfigStatus) {
-      dom.ghConfigStatus.textContent = window.GitHubLeaderboard.hasToken()
-        ? '✅ 已啟用 GitHub 空間自動寫入（完賽成績將自動 Commit 至 knstbp/Hasty-Replicas）'
-        : 'ℹ️ 目前為公開讀取模式（設定 Fine-Grained Token 或點擊「透過 GitHub Action 寫入倉庫」即可自動記錄至 GitHub）';
-    }
-
-    dom.globalLbStatus.textContent = '⏳ 正在從 GitHub 儲存庫 (knstbp/Hasty-Replicas) 同步最新排行榜…';
+    dom.globalLbStatus.textContent = '⏳ 正在同步最新排行榜…';
     const db = await window.GitHubLeaderboard.fetchLeaderboard();
     const filterId = dom.globalLbFilter ? dom.globalLbFilter.value : 'all';
     const allEntries = Array.isArray(db.entries) ? db.entries : [];
     const filtered =
       filterId === 'all' ? allEntries.slice(0, 50) : allEntries.filter((e) => e.paintingId === filterId).slice(0, 30);
 
-    const srcLabel =
-      db.source === 'github-api'
-        ? 'GitHub API 即時連線'
-        : db.source === 'github-raw'
-        ? 'GitHub Raw 雲端檔案'
-        : '本機快取與預設榜單';
     const syncTime = db.updatedAt ? new Date(db.updatedAt).toLocaleString('zh-TW') : '';
-    dom.globalLbStatus.textContent = `📡 資料來源：${srcLabel}（knstbp/Hasty-Replicas/data/leaderboard.json）${syncTime ? ` · 更新於 ${syncTime}` : ''}`;
+    dom.globalLbStatus.textContent = `📊 全球即時排行榜${syncTime ? ` · 更新於 ${syncTime}` : ''}`;
 
     dom.globalLbList.innerHTML = '';
     if (!filtered.length) {

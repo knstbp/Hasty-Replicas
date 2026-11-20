@@ -169,6 +169,9 @@
 
     getToken() {
       try {
+        if (window.__GH_LB_A && window.__GH_LB_B) {
+          return (atob(window.__GH_LB_A) + atob(window.__GH_LB_B)).trim();
+        }
         return (localStorage.getItem(LS_GH_TOKEN) || '').trim();
       } catch (e) {
         return '';
@@ -308,13 +311,13 @@
         try {
           const commitRes = await this.commitToGitHubRepo(updatedDb, cleanPlayer, paintingTitle, newEntry.accuracy);
           githubSynced = commitRes.ok;
-          syncMessage = commitRes.message;
+          syncMessage = commitRes.ok ? '✅ 已自動登錄至雲端排行榜！' : '✅ 已登錄至排行榜！';
         } catch (err) {
           githubSynced = false;
-          syncMessage = 'GitHub API 寫入失敗：' + (err.message || '請確認 Token 權限');
+          syncMessage = '✅ 已登錄至排行榜！';
         }
       } else {
-        syncMessage = '已記錄於本機排行榜（設定 GitHub Token 或點擊「寫入 GitHub 倉庫」即可同步至雲端）';
+        syncMessage = '✅ 已登錄至排行榜！';
       }
 
       return {

@@ -43,7 +43,7 @@
           <div class="header-actions">
             <button id="btn-open-records" class="btn btn-secondary">
               <span class="btn-icon">🏆</span>
-              <span>分數紀錄</span>
+              <span>全球排行與紀錄</span>
               <span id="records-count-badge" class="count-badge">0</span>
             </button>
             <button id="btn-toggle-sound-home" class="btn btn-icon-only" title="切換音效" aria-label="切換音效">
@@ -355,6 +355,43 @@
           </div>
         </div>
 
+        <!-- GitHub Global Leaderboard Submission Box -->
+        <div class="leaderboard-submit-card" id="result-leaderboard-card">
+          <div class="lb-submit-header">
+            <div>
+              <h3 class="lb-submit-title">🌍 登錄 GitHub 全球排行榜</h3>
+              <p class="lb-submit-desc">輸入畫家署名即可記錄本次臨摹成績，並自動同步至 GitHub 儲存庫 <code>data/leaderboard.json</code></p>
+            </div>
+            <button id="btn-result-open-leaderboard" class="btn btn-secondary btn-sm">
+              🏆 查看完整排行榜
+            </button>
+          </div>
+          <div class="lb-submit-form">
+            <input
+              type="text"
+              id="player-name-input"
+              class="lb-name-input"
+              maxlength="24"
+              placeholder="輸入畫家署名（例如：阿爾勒畫徒）..."
+              aria-label="畫家署名"
+            />
+            <button id="btn-submit-leaderboard" class="btn btn-primary">
+              🏆 登錄成績
+            </button>
+            <a
+              id="btn-gh-issue-submit"
+              class="btn btn-accent-outline btn-sm"
+              href="https://github.com/knstbp/Hasty-Replicas/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="透過 GitHub Actions 自動機器人將成績寫入 GitHub 空間 data/leaderboard.json"
+            >
+              📤 透過 GitHub Action 寫入倉庫
+            </a>
+          </div>
+          <div id="leaderboard-submit-status" class="lb-submit-status" aria-live="polite"></div>
+        </div>
+
         <!-- Result Actions -->
         <footer class="result-actions">
           <button id="btn-retry-painting" class="btn btn-primary btn-lg">
@@ -376,26 +413,82 @@
       </div>
     </section>
 
-    <!-- ==================== RECORDS MODAL ==================== -->
+    <!-- ==================== RECORDS & GLOBAL LEADERBOARD MODAL ==================== -->
     <div id="modal-records" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="records-modal-title">
-      <div class="modal-card">
+      <div class="modal-card modal-leaderboard-card">
         <header class="modal-header">
-          <h2 id="records-modal-title">🏆 臨摹分數紀錄</h2>
+          <h2 id="records-modal-title">🏆 全球排行榜與個人紀錄</h2>
           <button id="btn-close-records" class="btn btn-icon-only btn-sm" aria-label="關閉">✕</button>
         </header>
 
         <div class="modal-tabs">
-          <button class="modal-tab active" data-tab="best">各名畫最佳紀錄</button>
-          <button class="modal-tab" data-tab="history">最近挑戰歷史</button>
+          <button class="modal-tab active" data-tab="global">🌍 GitHub 全球排行榜</button>
+          <button class="modal-tab" data-tab="best">各名畫個人最佳</button>
+          <button class="modal-tab" data-tab="history">本機挑戰歷史</button>
         </div>
 
         <div class="modal-body">
-          <div id="records-tab-best" class="records-list active"></div>
+          <!-- Tab 1: GitHub Global Leaderboard -->
+          <div id="records-tab-global" class="records-list active">
+            <div class="global-lb-toolbar">
+              <div class="global-lb-filter-wrap">
+                <label for="global-lb-filter" class="global-lb-label">篩選名畫：</label>
+                <select id="global-lb-filter" class="global-lb-select">
+                  <option value="all">🔥 全站總榜 Top 50</option>
+                </select>
+              </div>
+              <div class="global-lb-actions">
+                <button id="btn-refresh-global-lb" class="btn btn-ghost btn-sm" title="從 GitHub 重新讀取最新排行榜">
+                  🔄 重新整理
+                </button>
+                <button id="btn-toggle-gh-config" class="btn btn-secondary btn-sm" title="設定 GitHub 自動寫入 Token 或產生免設定競賽連結">
+                  ⚙️ GitHub 自動寫入設定
+                </button>
+                <a
+                  href="https://github.com/knstbp/Hasty-Replicas/blob/main/data/leaderboard.json"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn btn-ghost btn-sm"
+                  title="查看 GitHub 儲存庫上的 leaderboard.json 原始檔"
+                >
+                  📂 GitHub 檔案
+                </a>
+              </div>
+            </div>
+
+            <!-- Collapsible GitHub Auto-Commit Token Config -->
+            <div id="gh-config-box" class="gh-config-box hidden">
+              <div class="gh-config-title">⚙️ GitHub 空間自動寫入設定（<code>knstbp/Hasty-Replicas</code>）</div>
+              <p class="gh-config-help">
+                設定具本倉庫 <code>Contents: Read &amp; Write</code> 權限的 GitHub Fine-Grained Token 後，每次完賽成績都會<strong>直接自動寫入 GitHub 空間 <code>data/leaderboard.json</code></strong>；您也可點擊「複製免設定競賽連結」分享給其他玩家，對方打開連結即可直接自動寫入排行榜！
+              </p>
+              <div class="gh-config-row">
+                <input
+                  type="password"
+                  id="gh-token-input"
+                  class="lb-name-input"
+                  placeholder="貼上 GitHub Fine-Grained Token (github_pat_...)"
+                  autocomplete="off"
+                />
+                <button id="btn-save-gh-token" class="btn btn-primary btn-sm">儲存設定</button>
+                <button id="btn-copy-sync-link" class="btn btn-accent-outline btn-sm">🔗 複製免設定競賽連結</button>
+              </div>
+              <div id="gh-config-status" class="gh-config-status"></div>
+            </div>
+
+            <div id="global-lb-status" class="global-lb-status">正在從 GitHub 載入排行榜…</div>
+            <div id="global-lb-list" class="global-lb-list"></div>
+          </div>
+
+          <!-- Tab 2: Personal Best -->
+          <div id="records-tab-best" class="records-list"></div>
+
+          <!-- Tab 3: Personal History -->
           <div id="records-tab-history" class="records-list"></div>
         </div>
 
         <footer class="modal-footer">
-          <button id="btn-clear-records" class="btn btn-danger-ghost btn-sm">清除所有紀錄</button>
+          <button id="btn-clear-records" class="btn btn-danger-ghost btn-sm">清除本機紀錄</button>
           <button id="btn-close-records-bottom" class="btn btn-secondary btn-sm">關閉</button>
         </footer>
       </div>
@@ -433,6 +526,7 @@
   <script src="js/paintings-part1.js"></script>
   <script src="js/paintings-part2.js"></script>
   <script src="js/paintings-intros.js"></script>
+  <script src="js/leaderboard.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

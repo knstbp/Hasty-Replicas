@@ -159,19 +159,35 @@
     overlayOpacitySlider: $('overlay-opacity-slider'),
 
     colorBreakdownList: $('color-breakdown-list'),
+    playerNameInput: $('player-name-input'),
+    btnSubmitLeaderboard: $('btn-submit-leaderboard'),
+    btnGhIssueSubmit: $('btn-gh-issue-submit'),
+    lbSubmitStatus: $('leaderboard-submit-status'),
+    btnResultOpenLeaderboard: $('btn-result-open-leaderboard'),
     btnRetry: $('btn-retry-painting'),
     btnNext: $('btn-next-painting'),
     btnResultViewOriginal: $('btn-result-view-original'),
     btnDownload: $('btn-download-postcard'),
     btnResultGallery: $('btn-result-gallery'),
 
-    // Modals
+    // Modals & Global Leaderboard
     modalRecords: $('modal-records'),
     btnCloseRecords: $('btn-close-records'),
     btnCloseRecordsBottom: $('btn-close-records-bottom'),
     btnClearRecords: $('btn-clear-records'),
+    recordsTabGlobal: $('records-tab-global'),
     recordsTabBest: $('records-tab-best'),
     recordsTabHistory: $('records-tab-history'),
+    globalLbFilter: $('global-lb-filter'),
+    btnRefreshGlobalLb: $('btn-refresh-global-lb'),
+    btnToggleGhConfig: $('btn-toggle-gh-config'),
+    ghConfigBox: $('gh-config-box'),
+    ghTokenInput: $('gh-token-input'),
+    btnSaveGhToken: $('btn-save-gh-token'),
+    btnCopySyncLink: $('btn-copy-sync-link'),
+    ghConfigStatus: $('gh-config-status'),
+    globalLbStatus: $('global-lb-status'),
+    globalLbList: $('global-lb-list'),
 
     modalOriginal: $('modal-original'),
     origModalTitle: $('orig-modal-title'),
@@ -933,7 +949,7 @@
     };
 
     const colorCount = (state.activePalette || p.palette).length;
-    const modeLabel = `90 秒 · ${colorCount}色`;
+    const modeLabel = `3 分鐘 · ${colorCount}色`;
     state.records.history.unshift({
       id: p.id,
       title: p.title,
@@ -972,10 +988,68 @@
     renderDiffCanvas(result.matchMask, false);
     renderColorBreakdown(result.breakdown);
 
+    // Prepare GitHub Global Leaderboard submission box
+    state.lastRoundSummary = {
+      paintingId: p.id,
+      paintingTitle: p.title,
+      accuracy: acc,
+      rank: rank.label,
+      timeUsed
+    };
+    if (window.GitHubLeaderboard && dom.playerNameInput) {
+      const savedName = window.GitHubLeaderboard.getPlayerName();
+      dom.playerNameInput.value = savedName;
+      updateGhIssueSubmitLink(savedName || '匿名畫家');
+      if (savedName) {
+        submitCurrentScoreToLeaderboard(false);
+      } else if (dom.lbSubmitStatus) {
+        dom.lbSubmitStatus.textContent = '💡 輸入畫家署名並點擊「登錄成績」，即可列入排行榜並同步至 GitHub 空間！';
+      }
+    }
+
     // Reset comparison tab to Side-by-Side
     setCompareMode('side');
     showScreen('result');
     syncSliderGeometry();
+  }
+
+  function updateGhIssueSubmitLink(playerName) {
+    if (!window.GitHubLeaderboard || !dom.btnGhIssueSubmit || !state.lastRoundSummary) return;
+    const entry = {
+      player: String(playerName || '匿名畫家').trim() || '匿名畫家',
+      paintingId: state.lastRoundSummary.paintingId,
+      paintingTitle: state.lastRoundSummary.paintingTitle,
+      accuracy: Number(state.lastRoundSummary.accuracy.toFixed(1)),
+      rank: state.lastRoundSummary.rank,
+      timeUsed: state.lastRoundSummary.timeUsed
+    };
+    dom.btnGhIssueSubmit.href = window.GitHubLeaderboard.getGitHubActionIssueUrl(entry);
+  }
+
+  async function submitCurrentScoreToLeaderboard(requireInput = true) {
+    if (!window.GitHubLeaderboard || !state.lastRoundSummary) return;
+    const rawName = dom.playerNameInput ? dom.playerNameInput.value.trim() : '';
+    if (requireInput && !rawName) {
+      dom.playerNameInput.focus();
+      dom.lbSubmitStatus.textContent = '⚠️ 請先輸入您的畫家署名（暱稱）！';
+      return;
+    }
+    const playerName = rawName || window.GitHubLeaderboard.getPlayerName() || '匿名畫家';
+    updateGhIssueSubmitLink(playerName);
+    if (dom.lbSubmitStatus) {
+      dom.lbSubmitStatus.textContent = '⏳ 正在計算名次並同步至 GitHub 排行榜…';
+    }
+    const res = await window.GitHubLeaderboard.submitScore({
+      player: playerName,
+      paintingId: state.lastRoundSummary.paintingId,
+      paintingTitle: state.lastRoundSummary.paintingTitle,
+      accuracy: state.lastRoundSummary.accuracy,
+      rank: state.lastRoundSummary.rank,
+      timeUsed: state.lastRoundSummary.timeUsed
+    });
+    if (dom.lbSubmitStatus && res && res.ok) {
+      dom.lbSubmitStatus.textContent = `🏅 《${state.lastRoundSummary.paintingTitle}》第 ${res.paintingRank} 名 · 全站總榜第 ${res.overallRank} 名 — ${res.syncMessage}`;
+    }
   }
 
   function copyCanvas(src, dst) {
@@ -1119,7 +1193,7 @@
 
     ctx.fillStyle = '#5C524B';
     ctx.font = 'bold 18px "Noto Sans TC", sans-serif';
-    ctx.fillText(`原作參考（16 色 · 90 秒）`, 44, 474);
+    ctx.fillText(`原作參考（16 色 · 3 分鐘）`, 44, 474);
     ctx.fillText('你的臨摹作品', 564, 474);
 
     ctx.fillStyle = '#8A7F76';
@@ -1153,10 +1227,79 @@
     dom.modalOriginal.classList.add('hidden');
   }
 
-  // ==================== RECORDS MODAL ====================
-  function openRecordsModal() {
+  // ==================== RECORDS & GLOBAL LEADERBOARD MODAL ====================
+  function populateGlobalFilterOptions() {
+    if (!dom.globalLbFilter || dom.globalLbFilter.options.length > 1) return;
+    window.PAINTINGS.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.title} (${p.artist})`;
+      dom.globalLbFilter.appendChild(opt);
+    });
+  }
+
+  async function renderGlobalLeaderboardTab() {
+    if (!window.GitHubLeaderboard || !dom.globalLbList) return;
+    populateGlobalFilterOptions();
+
+    if (dom.ghTokenInput) {
+      dom.ghTokenInput.value = window.GitHubLeaderboard.getToken();
+    }
+    if (dom.ghConfigStatus) {
+      dom.ghConfigStatus.textContent = window.GitHubLeaderboard.hasToken()
+        ? '✅ 已啟用 GitHub 空間自動寫入（完賽成績將自動 Commit 至 knstbp/Hasty-Replicas）'
+        : 'ℹ️ 目前為公開讀取模式（設定 Fine-Grained Token 或點擊「透過 GitHub Action 寫入倉庫」即可自動記錄至 GitHub）';
+    }
+
+    dom.globalLbStatus.textContent = '⏳ 正在從 GitHub 儲存庫 (knstbp/Hasty-Replicas) 同步最新排行榜…';
+    const db = await window.GitHubLeaderboard.fetchLeaderboard();
+    const filterId = dom.globalLbFilter ? dom.globalLbFilter.value : 'all';
+    const allEntries = Array.isArray(db.entries) ? db.entries : [];
+    const filtered =
+      filterId === 'all' ? allEntries.slice(0, 50) : allEntries.filter((e) => e.paintingId === filterId).slice(0, 30);
+
+    const srcLabel =
+      db.source === 'github-api'
+        ? 'GitHub API 即時連線'
+        : db.source === 'github-raw'
+        ? 'GitHub Raw 雲端檔案'
+        : '本機快取與預設榜單';
+    const syncTime = db.updatedAt ? new Date(db.updatedAt).toLocaleString('zh-TW') : '';
+    dom.globalLbStatus.textContent = `📡 資料來源：${srcLabel}（knstbp/Hasty-Replicas/data/leaderboard.json）${syncTime ? ` · 更新於 ${syncTime}` : ''}`;
+
+    dom.globalLbList.innerHTML = '';
+    if (!filtered.length) {
+      dom.globalLbList.innerHTML = '<div class="empty-records">此畫作目前尚無全球排行紀錄，快來搶下第一名！</div>';
+      return;
+    }
+
+    filtered.forEach((item, idx) => {
+      const rankInfo = getRankInfo(item.accuracy);
+      const medal = idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `#${idx + 1}`;
+      const row = document.createElement('div');
+      row.className = `lb-row${idx === 0 ? ' lb-top-1' : ''}`;
+      row.innerHTML = `
+        <div class="lb-rank-num">${medal}</div>
+        <div class="lb-player-name" title="${item.player}">${item.player}</div>
+        <div class="lb-painting-info" title="${item.paintingTitle} · ${item.date || ''}">《${item.paintingTitle}》 <small>${item.date || ''}</small></div>
+        <div class="lb-score-col">
+          <span class="lb-time-val">${formatTime(item.timeUsed || 180)}</span>
+          <span class="rank-pill ${rankInfo.cls}">${item.rank || rankInfo.label}</span>
+          <span class="lb-acc-val">${Number(item.accuracy).toFixed(1)}%</span>
+        </div>
+      `;
+      dom.globalLbList.appendChild(row);
+    });
+  }
+
+  function openRecordsModal(defaultFilterId = null) {
     window.SoundFX.click();
+    populateGlobalFilterOptions();
+    if (defaultFilterId && typeof defaultFilterId === 'string' && dom.globalLbFilter) {
+      dom.globalLbFilter.value = defaultFilterId;
+    }
     renderRecordsModal();
+    renderGlobalLeaderboardTab();
     dom.modalRecords.classList.remove('hidden');
   }
 
@@ -1165,7 +1308,7 @@
   }
 
   function renderRecordsModal() {
-    // Tab 1: Best per painting
+    // Tab 2: Best per painting
     const bestList = Object.values(state.records.bestById).sort((a, b) => b.bestAccuracy - a.bestAccuracy);
     dom.recordsTabBest.innerHTML = '';
     if (!bestList.length) {
@@ -1190,7 +1333,7 @@
       });
     }
 
-    // Tab 2: Recent history
+    // Tab 3: Recent history
     dom.recordsTabHistory.innerHTML = '';
     if (!state.records.history.length) {
       dom.recordsTabHistory.innerHTML = '<div class="empty-records">尚無挑戰歷史紀錄。</div>';
@@ -1359,20 +1502,94 @@
       showScreen('gallery');
     });
 
-    // Records Modal
-    dom.btnOpenRecords.addEventListener('click', openRecordsModal);
+    // Result Leaderboard Submission & Modal
+    if (dom.btnSubmitLeaderboard) {
+      dom.btnSubmitLeaderboard.addEventListener('click', () => {
+        window.SoundFX.click();
+        submitCurrentScoreToLeaderboard(true);
+      });
+    }
+    if (dom.playerNameInput) {
+      dom.playerNameInput.addEventListener('input', (e) => {
+        updateGhIssueSubmitLink(e.target.value);
+      });
+      dom.playerNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitCurrentScoreToLeaderboard(true);
+        }
+      });
+    }
+    if (dom.btnResultOpenLeaderboard) {
+      dom.btnResultOpenLeaderboard.addEventListener('click', () => {
+        const pid = state.currentPainting ? state.currentPainting.id : 'all';
+        openRecordsModal(pid);
+      });
+    }
+
+    // Records & Global Leaderboard Modal
+    dom.btnOpenRecords.addEventListener('click', () => openRecordsModal('all'));
     dom.btnCloseRecords.addEventListener('click', closeRecordsModal);
     dom.btnCloseRecordsBottom.addEventListener('click', closeRecordsModal);
     dom.modalRecords.addEventListener('click', (e) => {
       if (e.target === dom.modalRecords) closeRecordsModal();
     });
 
+    if (dom.globalLbFilter) {
+      dom.globalLbFilter.addEventListener('change', () => {
+        renderGlobalLeaderboardTab();
+      });
+    }
+    if (dom.btnRefreshGlobalLb) {
+      dom.btnRefreshGlobalLb.addEventListener('click', () => {
+        window.SoundFX.click();
+        renderGlobalLeaderboardTab();
+      });
+    }
+    if (dom.btnToggleGhConfig && dom.ghConfigBox) {
+      dom.btnToggleGhConfig.addEventListener('click', () => {
+        window.SoundFX.click();
+        dom.ghConfigBox.classList.toggle('hidden');
+      });
+    }
+    if (dom.btnSaveGhToken && dom.ghTokenInput) {
+      dom.btnSaveGhToken.addEventListener('click', () => {
+        window.SoundFX.click();
+        const saved = window.GitHubLeaderboard.setToken(dom.ghTokenInput.value);
+        dom.ghConfigStatus.textContent = saved
+          ? '✅ 已儲存 GitHub Fine-Grained Token！之後完賽將自動寫入 knstbp/Hasty-Replicas/data/leaderboard.json'
+          : 'ℹ️ 已清除 GitHub Token。';
+        renderGlobalLeaderboardTab();
+      });
+    }
+    if (dom.btnCopySyncLink) {
+      dom.btnCopySyncLink.addEventListener('click', async () => {
+        window.SoundFX.click();
+        if (dom.ghTokenInput && dom.ghTokenInput.value.trim()) {
+          window.GitHubLeaderboard.setToken(dom.ghTokenInput.value.trim());
+        }
+        if (!window.GitHubLeaderboard.hasToken()) {
+          dom.ghConfigStatus.textContent = '⚠️ 請先在上方貼上 GitHub Fine-Grained Token 再複製競賽分享連結！';
+          return;
+        }
+        const url = window.GitHubLeaderboard.getShareableSyncUrl();
+        try {
+          await navigator.clipboard.writeText(url);
+          dom.ghConfigStatus.textContent = '🔗 已複製免設定競賽連結！任何人打開此連結完賽即可自動寫入 GitHub 空間排行榜。';
+        } catch (e) {
+          dom.ghConfigStatus.textContent = '連結：' + url;
+        }
+      });
+    }
+
     document.querySelectorAll('.modal-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
         const target = tab.dataset.tab;
         document.querySelectorAll('.modal-tab').forEach((t) => t.classList.toggle('active', t === tab));
+        if (dom.recordsTabGlobal) dom.recordsTabGlobal.classList.toggle('active', target === 'global');
         dom.recordsTabBest.classList.toggle('active', target === 'best');
         dom.recordsTabHistory.classList.toggle('active', target === 'history');
+        if (target === 'global') renderGlobalLeaderboardTab();
       });
     });
 

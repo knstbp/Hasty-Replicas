@@ -2142,3 +2142,245 @@ button, input {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==================== GITHUB CLOUD LEADERBOARD ==================== */
+.leaderboard-submit-card {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-soft);
+  border-left: 4px solid var(--accent-gold);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.lb-submit-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.lb-submit-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--ink-primary);
+}
+
+.lb-submit-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-secondary);
+}
+
+.lb-submit-desc code,
+.gh-config-title code,
+.gh-config-help code {
+  background: rgba(31, 26, 23, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.lb-submit-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lb-name-input {
+  flex: 1 1 220px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-elevated);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--ink-primary);
+}
+
+.lb-name-input:focus {
+  outline: none;
+  border-color: var(--accent-gold-dark);
+  box-shadow: 0 0 0 3px rgba(201, 151, 58, 0.2);
+}
+
+.lb-submit-status {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-emerald);
+  min-height: 1.2em;
+}
+
+.modal-leaderboard-card {
+  max-width: 780px;
+}
+
+.global-lb-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.global-lb-filter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.global-lb-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+.global-lb-select {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-elevated);
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.global-lb-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gh-config-box {
+  background: var(--bg-gallery);
+  border: 1.5px dashed var(--accent-gold-dark);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.gh-config-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--ink-primary);
+  margin-bottom: 4px;
+}
+
+.gh-config-help {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink-secondary);
+}
+
+.gh-config-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gh-config-status {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-gold-dark);
+}
+
+.global-lb-status {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+
+.global-lb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.lb-row {
+  display: grid;
+  grid-template-columns: 46px 1.1fr 1.2fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+}
+
+.lb-row.lb-top-1 {
+  border-color: rgba(201, 151, 58, 0.65);
+  background: linear-gradient(90deg, rgba(201, 151, 58, 0.12), var(--bg-elevated));
+}
+
+.lb-rank-num {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--ink-primary);
+}
+
+.lb-player-name {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--ink-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-painting-info {
+  font-size: 0.82rem;
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-score-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.lb-acc-val {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: var(--ink-primary);
+}
+
+.lb-time-val {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 600px) {
+  .lb-row {
+    grid-template-columns: 38px 1fr auto;
+  }
+  .lb-painting-info {
+    grid-column: 2 / 4;
+  }
+}
